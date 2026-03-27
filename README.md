@@ -60,6 +60,35 @@ Purpose:
 - Choose a suitable visualization style for the problem type
 - Generate an HTML page to display the final solution result
 
+### `baidu-search`
+
+Description: Search the web using Baidu AI Search Engine (BDSE). Use for live information, documentation, or research topics.
+
+Purpose:
+- Search the web via Baidu AI Search API for real-time information retrieval
+- Support flexible query parameters including result count and time range filtering
+- Requires `BAIDU_API_KEY` configured via Baidu AI Cloud console
+
+### `medical-bill-organizer`
+
+Description: Medical bill organizer that automatically classifies, performs OCR recognition, and extracts key information from medical documents.
+
+Purpose:
+- Automatically classify medical bills into 28 categories (e.g., ID cards, medical records, invoices, prescriptions, etc.)
+- Perform OCR recognition and extract key information such as hospital names, admission dates, and billing amounts
+- Generate a summarized CSV file of all invoices with itemized and total amounts
+- Support folder or archive (zip/rar/7z) input for batch processing
+
+### `qianfanocr-document-intelligence`
+
+Description: Analyze image files, image URLs, PDF files, and PDF URLs for visual content understanding, including document parsing, layout analysis, OCR, key information extraction, chart understanding, and document VQA.
+
+Purpose:
+- Perform document parsing to extract structured Markdown from images and PDFs
+- Support multiple analysis modes: document parsing, layout analysis, element recognition, general OCR, key information extraction, chart understanding, and document VQA
+- Provide bundled CLI tools for image/PDF processing with flexible batch and concurrent execution
+- Requires `QIANFAN_TOKEN` configured via Baidu Qianfan platform
+
 ## Try in Claude Code
 
 You can register this repository as a Claude Code Plugin marketplace by running the following command in Claude Code:
