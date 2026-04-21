@@ -1,195 +1,64 @@
 ---
 name: famou-artifact-generator
-description: 
-  交互式引导用户完成 FaMou 进化任务的完整流程：先通过结构化澄清循环产出 `problem.md`，再实现并验证 FaMou 实验的三个输入物料（`init.py`、`evaluator.py`、`prompt.md`）。当用户提到以下任意情形时触发：定义/澄清/创建 FaMou 任务、帮我写 problem.md、我想建一个进化任务、帮我准备 FaMou 实验物料、生成 init.py 或 evaluator.py、优化/ML/搜索问题需要进化求解。即使用户只说"帮我做个 FaMou 任务"或提供粗略想法，也应触发此技能并从澄清阶段开始。
+description: Interactive end-to-end FaMou task solving workflow in three steps: (1) data understanding and problem definition, producing `problem.md`; (2) implementing and validating `evaluator.py`, `init.py`, and `prompt.md` based on `problem.md`; (3) deep solving via Auto-Search or FaMou. Trigger this skill whenever the user wants to define, clarify, or create a FaMou task, prepare FaMou experiment artifacts, write or fix `problem.md`, `evaluator.py`, `init.py`, or `prompt.md`, do FaMou solving, run deep solving, or solve an optimization / ML / search problem with evolutionary methods. Even if the user simply says "help me make a FaMou task", "help me solve this", or "run FaMou", trigger this skill if the context involves optimization or search.
+metadata:
+  author: famou-group
+  version: "2.0"
 ---
 
-# FaMou 进化任务问题定义
+# FaMou Task Solver — Three-Step Workflow
 
-端到端指导：从模糊想法 → 任务说明文档 `problem.md` → 评估器和初始解的实现与验证。
+Transform user-provided data and requirements into a runnable FaMou solving experiment.
 
-**两阶段流程：**
-- **阶段一（澄清）**：通过结构化问答，然后构建产出任务说明文档 `problem.md`
-- **阶段二（实现）**：根据 `problem.md` 生成并验证 `init.py`、`evaluator.py`、`prompt.md`
-
-FaMou 进化任务的三个输入：
-- `init.py` — 候选解脚本（单文件，可直接运行）
-- `evaluator.py` — 评估逻辑（固定接口，见下方）
-- `prompt.md` — 进化引导（角色、任务、数据、解法参考；≤100 行）
-
----
-
-## 阶段一：澄清阶段
-
-### 第一步 — 理解项目现状
-
-- 检查数据文件、代码脚本、README、配置，能从中回答的问题**不再提问**。
-- 如果有数据，分析和理解数据，例如数据等格式、问题分布等，**如果数据复杂，调用 famou-data-analysis 技能** 辅助。
-
----
-
-### 第二步 — 信息缺口分析
-
-识别填写任务模板所需的全部信息，用 Plan 或者 TODO 工具建立 TODO 列表：
-
-**核心指引**
-1. 可以从文档/数据中回答的条目直接标记为已解决，不再提问。
-2. 如果条目的答案相对明晰，或者非关键问题，直接标记成已解决。
-
-**必填 TODO**（按依赖顺序逐一解决，不得跳过或乱序）：
-- [ ] 核心问题描述与优化目标
-- [ ] 输入/输出规格（命令行参数、数据文件、标准输出/生成文件）
-- [ ] 数据来源（路径、结构/模式、字段定义、访问方式）
-- [ ] 各类约束及其验证方法
-- [ ] 评估器评分逻辑（如何区分不同质量等级）
-- [ ] 初始解方案或基线策略
-
-**可选 TODO**（有则填，无则跳过）：
-- [ ] 补充参考信息
-
----
-
-### 第三步 — 主动澄清循环
-
-**重复直到所有必填 TODO 解决：**
-
-1. 选取一个未解决的必填 TODO。
-2. 构造澄清问题，辅助模型收集必要的上下文信息（使用 `ask_uer` 类型的工具）：
-   - 注明**单选**或**多选**。
-   - 提供 **至少4个选项**，最后一项始终为**"其他（请说明）"**。
-3. 等待用户输入。
-4. 验证回答：
-   - 若无效或无关，提示用户重新选择，返回第 3 步
-   - 若有效，记录信息，进入第 5 步。
-5. 判断当前 TODO 信息是否充分：
-   - **充分** → 标记该 TODO 为已解决，返回第 1 步。
-   - **不充分**（尤其是硬约束、软约束等信息量大的条目）→ 针对剩余信息缺口继续构造追问，返回第 2 步，**不得跳到下一个 TODO**。
-
-所有必填 TODO 解决后，或用户明确确认任务已清晰，退出循环。
-
-> **约束类 TODO 澄清指引**：约束澄清通常涉及多个维度，每轮只问一个维度，逐步收集完整后再标记完成。
-
----
-
-### 第四步 — 综合规格并写入 `problem.md`
-
-按下方**任务模板**填写所有章节，规则：
-- 明确澄清的信息覆盖已有 `problem.md` 内容。
-- 若 `problem.md` 已存在，合并后完整覆盖写入。
-- 保持简洁，不冗余。
-
----
-
-### 第五步 — 评审确认
-
-> "请查阅 `problem.md`。问题定义现在是否清晰完整？"
-
-- **是** → 提示用户进入**实现阶段**生成评估器和初始解。
-- **否** → 返回第二步（仅当有新缺口可识别时）。
-
----
-
-## 阶段二：实现
-
-基于任务说明文档 `problem.md`，生成并验证 FaMou 进化框架所需要的 `evaluator.py`、`init.py` 和 `prompt.md`。
-
-### 第六步 — 物料实现
-
-**`evaluator.py`**（先实现，因为 init.py 验证依赖它）
-- 严格遵守下方接口定义（READONLY）。
-- 严格遵守系统级约束（READONLY）。
-- 评分必须能区分质量等级：崩溃/违反约束 → 0；低质量 → 低分；高质量 → 高分。
-
-**`init.py`**
-- 单文件，直接可运行，满足所有硬约束。
-- 实现 `problem.md` 中指定的基线策略或初始解方向。
-
-**`prompt.md`**（≤100 行）
-- 包含四个部分：(1) 角色，(2) 任务描述，(3) 数据描述，(4) 可行解参考。
-- 前三部分内容来源于 `problem.md`，不得添加新假设。
-- **文档内容不能包含任何emoj的表情**
-
----
-
-### 第七步 — 验证
-
-运行评估器验证 `init.py`：
-
-```bash
-python evaluator.py <path_to_init.py>
 ```
-
-必须同时满足：
-- `validity == 1`
-- `combined_score` 为数值且 `!= 0`
-- `error_info == ""`
-
-**若任一检查失败，分析原因，修改对应产物，重新验证，直至全部通过。**
-
----
-
-## 任务模板（`problem.md` 结构）
-
-```markdown
-## 目标
-<!-- READONLY：为 FaMou 进化任务准备 init.py、evaluator.py 和 prompt.md -->
-
-## 1. 任务定义
-- 核心问题描述
-- 输入：（命令行参数 / 数据文件）
-- 输出：（标准输出 / 生成文件）
-- 主要优化目标
-- 关键指标及计算公式
-
-## 2. 数据描述
-- 数据来源（文件/表名、结构/模式、字段定义）
-- 访问方式（路径、格式）
-
-## 3. 评估器
-
-### 接口（READONLY）
-def evaluate(path_user_py: str, task_name: str = "default", timeout: int = 3600) -> dict:
-    return {
-        "validity": float,        # 0 或 1；1 表示满足所有硬约束
-        "combined_score": float,  # 为可行解打分，0表示无效解，低分表示低质量解，高分表示高质量解
-        "cost_time": float,       # 评估花费时间
-        "error_info": str,        # 成功时为 ""
-    }
-
-### 参考执行流程
-1. 创建所需中间目录和文件
-2. 配置候选解运行参数
-3. 执行候选解脚本
-4. 捕获执行结果（完成 / 错误 / 异常）
-5. 检查硬约束和软约束
-6. 计算 combined_score
-
-### 硬约束
-<!-- 精确规则、验证方法、违反后果 -->
-
-### 软约束
-<!-- 优化目标、度量方法、对分数影响 -->
-
-### 系统级约束（READONLY）
-- 无论 init.py 是否与 evaluator.py 同目录，评估器必须能正确执行
-- 如果使用 subprocess 调用子进程，必须将 cwd 设置为 evaluator.py 所在目录
-- 不得依赖临时目录作为工作目录
-
-## 4. 初始解
-<!-- 单文件 init.py；方案、基线策略或求解方向；必须满足所有硬约束 -->
-
-## 5. 进化提示（prompt.md，≤100 行）
-<!-- (1) 角色 (2) 任务描述 (3) 数据描述 (4) 可行解参考 -->
-
-## 6. 补充信息（可选）
-<!-- 参考资料、备注 -->
+┌─────────────────────────────────────────────────────────────┐
+│  Input: user description / data files / documents           │
+│           ↓                                                  │
+│  Step 1  Data Understanding & Problem Definition            │
+│                            → problem.md                     │
+│           ↓                                                  │
+│  Step 2  Adapter Implementation                             │
+│                            → evaluator.py                   │
+│                            → init.py                        │
+│                            → prompt.md                      │
+│           ↓                                                  │
+│  Step 3  Deep Solving (user's choice)                       │
+│                            → Auto-Search or FaMou           │
+│                                                             │
+│  Output: best solution + score                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 注意事项
+## Step Navigation
 
-- 澄清循环每轮只提一个问题，不得并行提问。
-- 无效回答必须被拒绝，不得假设未解决的 TODO。
-- 实现阶段必须运行验证，不得跳过。
-- 若用户希望跳过澄清直接实现，尊重其选择，将已知信息缺口在 `problem.md` 中标注为假设后直接进入阶段二。
+**Read the reference file before entering each step.**
+
+| Step | Core Task | Input | Output | Reference |
+|------|-----------|-------|--------|-----------|
+| Step 1 | Data understanding, workspace analysis, interactive clarification, problem definition | User description + data files | `problem.md` | `references/step1-problem-definition.md` |
+| Step 2 | Implement evaluator, initial solution, prompt | `problem.md` | `evaluator.py` `init.py` `prompt.md` | `references/step2-adapter.md` |
+| Step 3 | Choose solving engine, execute | `evaluator.py` `init.py` `prompt.md` | Best solution + score | `references/step3-solving.md` |
+
+---
+
+## Execution Flow
+
+```
+① Read references/step1-problem-definition.md
+   → Analyze workspace and user data
+   → Clarify problem interactively
+   → Write problem.md as the task contract, wait for user confirmation
+
+② Read references/step2-adapter.md
+   → Implement the adapter using problem.md + the fixed Step 2 implementation contract
+   → Validate evaluator + init locally
+   → Present to user for confirmation
+
+③ Read references/step3-solving.md
+   → Ask user to choose solving method
+   → Execute and return best solution
+```
+
+**Each step requires explicit user confirmation before proceeding.**
