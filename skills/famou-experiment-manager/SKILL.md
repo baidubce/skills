@@ -20,11 +20,10 @@ A complete workflow for submitting and managing experiment tasks via `famou-ctl-
 famou-ctl --version
 ```
 
-- Required version: `famou-ctl-sdk >= 1.1.0`.
-- If the installed version is lower than `1.1.0`, upgrade it: `famou-ctl upgrade`
 - If the command is not found, install it: `pip install famou-sdk`
+- If the command is found, check the version number. **The required version is `1.1.0`**. For example, `1.0.0` does not meet the requirement. If the version is not `1.1.0`, upgrade it: `pip install famou-sdk==1.1.0`
 
-After installation or upgrade, verify again with `famou-ctl --version`. If it still fails or the version is still lower than `1.1.0`, stop and ask the user to check their Python environment, pip source configuration, or `famou-ctl` installation path.
+After installation or upgrade, verify again with `famou-ctl --version`. If the command still fails or the version is still not `1.1.0`, tell the user to manually install `famou-ctl-sdk` version `1.1.0` and exit.
 
 ### 1.2 Check and Configure API Settings
 
