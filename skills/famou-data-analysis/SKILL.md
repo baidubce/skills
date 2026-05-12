@@ -1,145 +1,148 @@
 ---
 name: famou-data-analysis
-description: 数据分析技能，用于理解数据、分析数据、制作数据处理流程、汇总数据分析结果。当用户提到"分析数据"、"数据处理"、"数据探索"、"统计分析"、"数据清洗"、"数据汇总"、"制作数据报告"、"理解这份数据"、"看一下这个CSV/Excel/数据集"时，必须使用此技能。即使用户只说"帮我看看这个数据"、"分析一下"，只要上下文涉及数据文件或数据集，也应立即触发此技能。如果在FaMou问题定义过程中涉及到数据分析，也需要调用此技能。
+description: A data analysis skill for understanding datasets, analyzing data, building data processing pipelines, and summarizing analytical results. Use this skill when the user mentions "analyze data", "data processing", "data exploration", "statistical analysis", "data cleaning", "data summarization", "create a data report", "understand this dataset", or "take a look at this CSV/Excel/dataset". Even if the user simply says "help me look at this data" or "analyze this", trigger this skill whenever the context involves a data file or dataset. Also invoke this skill if data analysis is required during Famou problem definition.
+metadata:
+  author: famou-group
+  version: "2.0"
 ---
 
-# 数据分析技能
+# Data Analysis Skill
 
-## 分析目标
+## Analysis Goals
 
-数据分析任务的核心目标是：
+The core objectives of a data analysis task are:
 
-1. **理解数据**：搞清楚数据是什么、从哪来、代表什么业务含义，而不仅仅是读取文件
-2. **评估数据质量**：识别缺失、重复、异常、格式不一致等问题，判断数据可信度
-3. **发现规律与洞察**：通过统计和探索，找出数据中有意义的模式、趋势、异常和关联
-4. **制定处理流程**：根据实际数据问题，设计可复现、有依据的清洗和转换方案
-5. **汇总结果**：用清晰、有业务价值的语言输出结论，不是堆砌统计数字
-
----
-
-## 处理约束
-
-**在分析过程中，始终遵守以下约束：**
-
-- **不擅自修改原始数据**：任何清洗或转换操作都要先告知用户，说明原因，再执行
-- **不过度假设数据含义**：列名不清晰时，应向用户确认，而不是自行猜测
-- **不忽略数据质量问题**：发现异常、缺失、不一致时必须明确标注，不能绕过
-- **不强行套用固定流程**：数据格式千差万别，应根据实际情况灵活判断分析路径
-- **不脱离用户目标做分析**：始终围绕"用户想解决什么问题"来决定分析深度和方向
+1. **Understand the data**: Clarify what the data is, where it comes from, and what business meaning it carries — not just read the file
+2. **Assess data quality**: Identify missing values, duplicates, anomalies, and formatting inconsistencies; evaluate data trustworthiness
+3. **Discover patterns and insights**: Use statistics and exploration to surface meaningful patterns, trends, anomalies, and correlations
+4. **Design a processing pipeline**: Based on the actual data issues, design a reproducible and well-reasoned cleaning and transformation plan
+5. **Summarize findings**: Deliver conclusions in clear, business-relevant language — not just a pile of statistics
 
 ---
 
-## 最佳实践
+## Constraints
 
-### 先理解，再动手
-拿到数据后，优先弄清楚背景：数据的业务场景是什么？用户的分析目的是什么？这决定了哪些列重要、什么算"异常"、如何处理缺失值。
+**Always follow these constraints throughout the analysis:**
 
-### 用业务语言解释结果
-不要只输出统计数字，要解释它们的含义。"均值是 3200"不如"平均订单金额约 3200 元，但中位数仅 1800 元，说明存在少量高额订单拉高了均值"。
-
-### 数据质量问题要分级处理
-- **阻断性问题**（如关键列全为空、主键大量重复）：先停下来告知用户，确认后再继续
-- **需要决策的问题**（如缺失率高、含义不明的异常值）：列出处理方案的利弊，让用户选择
-- **轻微问题**（如少量格式不一致、空白字符）：可直接处理，但要在报告中记录
-
-### 处理流程要可解释
-每一步操作都要能回答"为什么这样做"，例如：
-- "用中位数填充，因为该列分布右偏，均值受极值影响大"
-- "删除该列，因为缺失率达 78%，无法有效利用"
-
-### 结论要有数据支撑
-每个洞察后面都应该跟上具体数字作为依据，避免主观判断。
-
-### 环境与工具
-- 文件路径：上传的文件在 `/mnt/user-data/uploads/`，输出文件保存到 `/mnt/user-data/outputs/`
-- 中文数据常见编码问题：优先尝试 `utf-8`，失败则尝试 `gbk` / `gb18030`
-- 图表中文显示：设置 `matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']`
-- 输出 CSV 供 Excel 打开时，用 `encoding='utf-8-sig'` 防止乱码
+- **Do not modify raw data without permission**: Always inform the user and explain the reason before performing any cleaning or transformation
+- **Do not over-assume data meaning**: When column names are unclear, ask the user for clarification rather than guessing
+- **Do not ignore data quality issues**: Anomalies, missing values, and inconsistencies must be explicitly flagged — never silently worked around
+- **Do not rigidly apply a fixed pipeline**: Data formats vary widely; adapt the analysis approach to the actual situation
+- **Do not stray from the user's goal**: Always keep the analysis depth and direction anchored to "what problem is the user trying to solve"
 
 ---
 
-## 分析结果汇总格式
+## Best Practices
 
-无论分析路径如何，最终汇总报告应包含：
+### Understand first, then act
+After receiving data, prioritize understanding the context: What is the business scenario? What is the user's analytical goal? This determines which columns matter, what counts as "anomalous", and how to handle missing values.
+
+### Explain results in business language
+Don't just output statistics — explain what they mean. "The mean is 3200" is less useful than "The average order value is approximately $3,200, but the median is only $1,800, suggesting a small number of high-value orders are inflating the mean."
+
+### Triage data quality issues by severity
+- **Blocking issues** (e.g., critical columns entirely empty, widespread primary key duplication): Stop and inform the user; wait for confirmation before proceeding
+- **Decision-required issues** (e.g., high missing rates, ambiguous outliers): Present the tradeoffs of each handling option and let the user choose
+- **Minor issues** (e.g., scattered format inconsistencies, leading/trailing whitespace): Handle directly, but document them in the report
+
+### Make the processing pipeline explainable
+Every operation should be answerable with "why did we do this?", for example:
+- "Filled with the median because this column is right-skewed and the mean is heavily influenced by outliers"
+- "Dropped this column because the missing rate is 78%, making it unusable"
+
+### Back every conclusion with data
+Each insight should be accompanied by specific numbers as evidence; avoid subjective judgments unsupported by data.
+
+### Environment & Tools
+- File paths: Uploaded files are at `/mnt/user-data/uploads/`; save output files to `/mnt/user-data/outputs/`
+- Encoding issues with non-ASCII data: Try `utf-8` first; fall back to `latin-1` or `cp1252` if needed
+- Chart font rendering: Set `matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans']` for reliable rendering
+- CSV output for Excel: Use `encoding='utf-8-sig'` to prevent encoding issues when opening in Excel
+
+---
+
+## Analysis Report Format
+
+Regardless of the analysis path taken, the final summary report should include:
 
 ```
-## 数据分析报告
+## Data Analysis Report
 
-### 数据概况
-（数据规模、来源、时间范围、核心字段说明）
+### Data Overview
+(Dataset size, source, time range, description of key fields)
 
-### 数据质量
-（发现的问题、严重程度、已做处理或待确认事项）
+### Data Quality
+(Issues found, severity level, actions taken or items pending confirmation)
 
-### 核心发现
-（3-5 条最重要的洞察，每条附数据支撑）
+### Key Findings
+(3–5 most important insights, each supported by data)
 
-### 处理流程说明
-（对数据做了哪些变换，为什么这样做）
+### Processing Pipeline
+(What transformations were applied to the data and why)
 
-### 后续建议
-（数据改进建议、可深入分析的方向）
+### Recommendations
+(Suggestions for data improvement, directions for deeper analysis)
 ```
 
 ---
 
-## 示例
+## Examples
 
-以下示例展示了面对不同类型数据时，如何应用上述目标和约束进行分析。
+The following examples show how to apply the goals and constraints above when facing different types of data.
 
-### 示例 A：电商订单数据分析
+### Example A: E-commerce Order Data Analysis
 
-**场景**：用户上传一份订单 CSV，列包括订单 ID、下单时间、商品类别、金额、用户城市、支付状态，想了解"销售整体情况"。
+**Scenario**: The user uploads an order CSV with columns for Order ID, Order Time, Product Category, Amount, User City, and Payment Status, and wants to understand "overall sales performance."
 
-**分析思路**：
-- 先确认时间范围，这是销售分析的基本背景
-- 金额列检查是否有负值（退款？录入错误？）、零值（需要业务解释）
-- 支付状态的分布决定"有效订单"的口径
-- 按时间聚合看趋势，按类别和城市看构成
+**Analysis approach**:
+- Confirm the time range first — this is the baseline context for any sales analysis
+- Check the Amount column for negative values (refunds? data entry errors?) and zero values (require business explanation)
+- The distribution of Payment Status determines the definition of "valid orders"
+- Aggregate by time to spot trends; break down by category and city for composition analysis
 
-**质量问题处理示例**：
-> 发现"金额"列有 12 行为负值。在销售数据中，负值通常代表退款记录。建议：若分析销售额，过滤掉负值；若分析净收入，需要保留。请确认分析目标后再处理。
+**Quality issue handling example**:
+> Found 12 rows with negative values in the "Amount" column. In sales data, negatives typically represent refund records. Recommendation: filter them out when analyzing gross revenue; keep them when analyzing net income. Please confirm your analysis goal before we proceed.
 
-**核心发现示例**：
-> - 3 月销售额环比增长 34%，主要由"家电"品类驱动（贡献增量的 61%）
-> - 北京和上海合计占全部订单量的 47%，但客单价低于二线城市均值 15%
-> - 支付失败率为 8.3%，高于行业参考值（通常 2-5%），建议排查支付链路
+**Key findings example**:
+> - March revenue grew 34% month-over-month, primarily driven by the "Electronics" category (contributing 61% of the incremental growth)
+> - New York and Los Angeles together account for 47% of all orders, but average order value is 15% below the average for mid-tier cities
+> - Payment failure rate is 8.3%, above the typical industry benchmark of 2–5%; recommend investigating the payment flow
 
 ---
 
-### 示例 B：结构混乱的调查问卷数据
+### Example B: Messy Survey Data
 
-**场景**：用户上传一份 Excel，多个 Sheet，列名不统一（有的叫"Q1"，有的叫"第一题"），部分单元格合并，有空行空列。
+**Scenario**: The user uploads an Excel file with multiple sheets, inconsistent column names (some say "Q1", others say "Question 1"), merged cells, and scattered blank rows and columns.
 
-**首要步骤**：不急于分析，先向用户说明数据结构问题：
+**First step**: Don't rush into analysis — first surface the structural issues to the user:
 
-> 这份文件包含 3 个 Sheet，结构存在以下问题需要先确认：
-> 1. Sheet1 和 Sheet2 的列名不一致，是同一份问卷的不同批次，还是不同问卷？
-> 2. 第 5-8 行为空行，是否可以删除？
-> 3. "Q3_其他"列 92% 为空，是开放题填写率低，还是导出时出了问题？
+> This file contains 3 sheets, and there are several structural issues to clarify before we proceed:
+> 1. Sheet1 and Sheet2 have different column names — are these different batches of the same survey, or entirely different surveys?
+> 2. Rows 5–8 are blank — is it safe to remove them?
+> 3. The "Q3_Other" column is 92% empty — is this a low open-response rate, or a data export issue?
 >
-> 确认后我来制定清洗方案。
+> Once confirmed, I'll design a cleaning plan.
 
-**体现约束**：这里不假设列名含义，不擅自合并 Sheet，先暴露问题等用户确认。
+**Constraint in action**: Column meanings are not assumed, sheets are not merged arbitrarily — issues are surfaced first and the user is asked to confirm.
 
 ---
 
-### 示例 C：用户要求"清洗数据并输出处理后的文件"
+### Example C: User Requests "Clean the Data and Output a Processed File"
 
-**处理流程文档示例**（随输出文件一起提供）：
+**Processing log example** (provided alongside the output file):
 
 ```
-数据处理流程记录
-原始文件：sales_2024.csv（8,412 行 × 15 列）
-处理后文件：sales_2024_cleaned.csv（8,203 行 × 13 列）
+Data Processing Log
+Source file:  sales_2024.csv  (8,412 rows × 15 columns)
+Output file:  sales_2024_cleaned.csv  (8,203 rows × 13 columns)
 
-变更说明：
-1. 删除重复行：移除 89 行完全重复记录
-2. 删除"备注2"列：缺失率 96%，无有效信息
-3. 删除"内部编码"列：用户确认该列不参与分析
-4. 金额列格式统一：将"¥1,200.00"格式转为数值 1200.0（共 203 行受影响）
-5. 日期列标准化：统一转为 YYYY-MM-DD 格式（原始混有 MM/DD/YYYY 和中文日期两种格式）
-6. 缺失值处理：
-   - "城市"列 34 行缺失 → 填入"未知"（用户确认）
-   - "金额"列 86 行缺失 → 保留为空（用户确认这批订单为异常记录，不填充）
+Changes:
+1. Removed duplicate rows: deleted 89 fully duplicate records
+2. Dropped "Notes2" column: 96% missing, no useful information
+3. Dropped "Internal Code" column: user confirmed it is not needed for analysis
+4. Standardized Amount column: converted "¥1,200.00" format to numeric 1200.0 (203 rows affected)
+5. Standardized Date column: unified to YYYY-MM-DD format (source had mixed MM/DD/YYYY and written-out date formats)
+6. Missing value handling:
+   - "City" column: 34 missing values → filled with "Unknown" (user confirmed)
+   - "Amount" column: 86 missing values → left blank (user confirmed these are anomalous records that should not be imputed)
 ```

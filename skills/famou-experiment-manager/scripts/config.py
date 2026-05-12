@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Famou 配置与项目文件管理工具。"""
+"""Famou configuration and project file management tool."""
 import argparse
 import json
 import os
@@ -21,12 +21,12 @@ def load_settings() -> dict:
         with open(SETTINGS_PATH) as f:
             return json.load(f)
     except Exception as e:
-        print(f"WARNING: 配置文件解析失败: {e}", file=sys.stderr)
+        print(f"WARNING: Failed to parse settings file: {e}", file=sys.stderr)
         return {}
 
 
 def cmd_read():
-    """读取配置文件，检查 api_url 和 api_key 是否完整"""
+    """Read settings and check whether api_url and api_key are complete."""
     settings = load_settings()
     api_url = settings.get("api_url", "").strip()
     api_key = settings.get("api_key", "").strip()
@@ -47,7 +47,7 @@ def cmd_read():
 
 
 def cmd_write(api_key: str):
-    """写入 API key，使用默认的 api_url 和 user_id"""
+    """Write API key using the default api_url and user_id."""
     os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
 
     settings = {
@@ -61,7 +61,7 @@ def cmd_write(api_key: str):
             json.dump(settings, f, indent=2)
         result = {
             "success": True,
-            "message": "配置已保存",
+            "message": "Settings saved",
             "config": {
                 "api_url": settings["api_url"],
                 "masked_key": mask(settings["api_key"])
@@ -78,9 +78,9 @@ def cmd_write(api_key: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Famou 配置与项目文件管理工具")
-    parser.add_argument("command", choices=["read", "write"], help="命令：read 或 write")
-    parser.add_argument("api_key", nargs="?", help="API 密钥（仅 write 命令需要）")
+    parser = argparse.ArgumentParser(description="Famou configuration and project file management tool")
+    parser.add_argument("command", choices=["read", "write"], help="Command: read or write")
+    parser.add_argument("api_key", nargs="?", help="API key (required only for write command)")
     
     args = parser.parse_args()
 
@@ -88,7 +88,7 @@ def main():
         cmd_read()
     elif args.command == "write":
         if not args.api_key:
-            parser.error("write 命令需要 api_key 参数")
+            parser.error("write command requires an api_key argument")
         cmd_write(args.api_key)
 
 

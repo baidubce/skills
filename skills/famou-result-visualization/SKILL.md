@@ -1,113 +1,117 @@
 ---
 name: famou-result-visualization
-description: 为 FaMou 进化算法生成可行解的 Python 代码解生成可视化结果页面。当用户提到"FaMou 可视化"、"把这个解可视化"、"可行解结果展示"、"evolution 结果"、"evolve 可视化"，或者提供了 Python 代码形式的问题解（路径规划、排课、背包、TSP、调度、机器学习等）需要直观展示效果时，必须使用此技能。即使用户只说"帮我可视化这个解"、"画出来看看"、"展示一下结果"，只要上下文涉及进化算法、优化问题的解，也应立即触发此技能。
+description: Generate interactive visualization pages for feasible solutions produced by Famou evolutionary algorithms. Use this skill when the user mentions "Famou visualization", "visualize this solution", "show feasible solution results", "evolution results", "evolve visualization", or provides a Python-code solution (path planning, scheduling, knapsack, TSP, job scheduling, machine learning, etc.) that needs to be displayed visually. Even if the user just says "help me visualize this solution", "draw it out", or "show me the results", trigger this skill immediately whenever the context involves evolutionary algorithms or optimization problem solutions.
+metadata:
+  author: famou-group
+  version: "2.0"
 ---
 
-# FaMou 进化算法解——结果可视化 Skill
+# Famou Evolutionary Algorithm Solution — Result Visualization Skill
 
-**核心目标**：拿到 Python 代码形式的优化问题解，直接理解其语义，生成一个直观展示**解的效果**的交互式 HTML 页面。
+**Core goal**: Take an optimization problem solution in Python code form, understand its semantics directly, and generate an interactive HTML page that visually demonstrates **the effect of the solution**.
 
-不是展示进化过程，而是展示**解本身的结果**——路径规划画路径、排课画课表、背包问题画装载情况、图着色画上色的图……
-
----
-
-## 第一步：收集输入
-
-**必须有**：
-1. **问题描述** — 是什么优化问题，输入规模，约束条件
-2. **Python 代码形式的解** — FaMou 进化后的最终解（函数/数据结构/策略代码均可）
-
-**可选补充**：
-- 评估分数 / 适应度
-- 初始解（用于对比）
-- 问题的原始数据（如节点坐标、任务列表等）
-
-若缺少必须项，直接询问用户补充。
+This is not about showing the evolutionary process — it's about showing **what the solution looks like**: draw the route for path planning, draw the timetable for scheduling, draw the packing layout for knapsack problems, draw the colored graph for graph coloring, etc.
 
 ---
 
-## 第二步：理解解 → 规划可视化方案
+## Step 1: Collect Inputs
 
-**直接阅读和理解**用户提供的 Python 代码和问题描述，无需调用任何外部 API。
+**Required:**
+1. **Problem description** — what optimization problem it is, input scale, constraints
+2. **Solution in Python code** — the final solution after Famou evolution (functions, data structures, or strategy code are all acceptable)
 
-### 2.1 理解解的语义
+**Optional:**
+- Evaluation score / fitness value
+- Initial solution (for comparison)
+- Original problem data (e.g. node coordinates, task list, etc.)
 
-阅读代码，提取：
-- **问题类型**：路径规划 / 排课 / 背包 / 图论 / 调度 / 装箱 / 其他
-- **解的核心数据结构**：是节点序列？时间表映射？选择集合？分配方案？
-- **关键数值**：坐标、时间槽、容量、权重、颜色等可视化所需的具体数据
+If any required input is missing, ask the user to provide it before proceeding.
 
-### 2.2 确定可视化类型
+---
 
-根据问题类型选择最合适的 `viz_type`：
+## Step 2: Understand the Solution → Plan the Visualization
 
-| 问题类型 | viz_type | 视觉呈现 |
+**Read and understand** the user's Python code and problem description directly — no external API calls needed.
+
+### 2.1 Understand the Solution Semantics
+
+Read the code and extract:
+- **Problem type**: path planning / scheduling / knapsack / graph theory / job scheduling / bin packing / other
+- **Core data structure of the solution**: node sequence? time-slot mapping? selection set? assignment plan?
+- **Key values**: coordinates, time slots, capacities, weights, colors, and other concrete data needed for visualization
+
+### 2.2 Determine Visualization Type
+
+Choose the most appropriate `viz_type` based on the problem type:
+
+| Problem Type | viz_type | Visual Representation |
 |---|---|---|
-| TSP / VRP / 路径规划 | `path_map` | SVG 坐标系 + 节点连线路径 |
-| 排课 / 时间表 | `schedule_grid` | 表格热力图，色块填充 |
-| 背包 / 装箱 | `packing_rect` | SVG 矩形堆叠容器 |
-| 图着色 / 社区检测 | `graph_color` | 节点着色图 |
-| 作业调度 / 项目排期 | `gantt` | 横向甘特图 |
-| 前后对比 / 多指标 | `bar_compare` | 对比柱状图 |
-| 机器学习 / 神经网络 / 超参优化 | `ml_viz` | 网络结构图 / 训练曲线 / 超参热力图 |
-| 其他 / 复杂策略 | `custom` | 关键指标仪表盘 + 文字说明 |
+| TSP / VRP / Path Planning | `path_map` | SVG coordinate system + node-connected route |
+| Scheduling / Timetable | `schedule_grid` | Table heatmap with colored blocks |
+| Knapsack / Bin Packing | `packing_rect` | SVG stacked rectangle containers |
+| Graph Coloring / Community Detection | `graph_color` | Node-colored graph |
+| Job Scheduling / Project Planning | `gantt` | Horizontal Gantt chart |
+| Before/After Comparison / Multi-metric | `bar_compare` | Comparative bar chart |
+| ML / Neural Networks / Hyperparameter Tuning | `ml_viz` | Network structure / training curve / hyperparameter heatmap |
+| Other / Complex Strategies | `custom` | Key metrics dashboard + text description |
 
-### 2.3 提取绘图数据
+### 2.3 Extract Rendering Data
 
-从代码中直接读取并整理渲染所需的具体数值，例如：
-- `path_map`：节点坐标列表、访问顺序、总距离
-- `schedule_grid`：资源列表、时间槽、各分配的 (资源, 时间槽, 名称)
-- `packing_rect`：容器尺寸、各物品的 (x, y, w, h, 标签, 价值)
-- `gantt`：任务列表，每项含 (名称, 开始, 结束, 资源)
+Read the code directly and organize the concrete values needed for rendering, for example:
+- `path_map`: list of node coordinates, visit order, total distance
+- `schedule_grid`: resource list, time slots, each assignment as (resource, time slot, name)
+- `packing_rect`: container dimensions, each item as (x, y, w, h, label, value)
+- `gantt`: task list, each item containing (name, start, end, resource)
 
 ---
 
-## 第三步：生成 HTML 可视化文件
+## Step 3: Generate the HTML Visualization File
 
-直接编写并输出 HTML 文件到 `famou_viz_result.html`（或用户指定路径）。
+Write and output the HTML file directly to `famou_viz_result.html` (or a user-specified path).
 
-### 页面整体结构
+### Page Layout
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  [问题类型标签]  问题摘要                  关键指标卡片行  │
+│  [Problem Type Tag]  Problem Summary       Key Metric Cards  │
 ├────────────────────────────────────┬─────────────────────┤
 │                                    │                     │
-│   主可视化区域（视觉中心，≥50%）    │   解的亮点列表       │
-│   路径图 / 课表 / 装箱图 / 甘特图   │                     │
-│                                    │   评分 / 提升展示    │
+│   Main Visualization Area          │   Solution Highlights│
+│   (visual center, ≥50% of page)    │                     │
+│   Route / Timetable / Packing /    │   Score / Improvement│
+│   Gantt Chart                      │   Display           │
 ├────────────────────────────────────┴─────────────────────┤
-│   (可选) 进化前后对比 / 补充说明                          │
+│   (Optional) Before/After Comparison / Additional Notes   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 设计规范
+### Design Guidelines
 
-- **暗色科技风**：背景 `#030810`，卡片 `#080f1e`，边框 `#112240`
-- **accent 色系**：主色 `#00c8ff`（蓝）搭配 `#00ff88`（绿）作为高亮
-- **字体**：正文 `Noto Sans SC`，数字/代码 `IBM Plex Mono`（Google Fonts CDN）
-- **入场动画**：各区块依次 `fadeUp`（`animation-delay` 递增）
-- **主可视化动画**：路径逐段绘制，柱子从底部生长，节点弹入
-- **交互**：hover 节点/格子/柱子时显示 tooltip
-- **Tooltip**：固定定位，跟随鼠标，显示详细数值
+- **Dark tech aesthetic**: background `#030810`, cards `#080f1e`, borders `#112240`
+- **Accent colors**: primary `#00c8ff` (blue) paired with `#00ff88` (green) for highlights
+- **Fonts**: body text `Noto Sans SC`, numbers/code `IBM Plex Mono` (via Google Fonts CDN)
+- **Entrance animation**: each section fades up in sequence (`fadeUp` with increasing `animation-delay`)
+- **Main visualization animation**: routes drawn segment by segment, bars grow from the bottom, nodes pop in
+- **Interactivity**: hovering over nodes / grid cells / bars shows a tooltip
+- **Tooltip**: fixed-position, follows the mouse, shows detailed values
 
-### 文件模板
+### File Template
 
 ```html
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FaMou 解可视化 — {问题名称}</title>
+  <title>Famou Solution Visualization — {Problem Name}</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    /* 内联全部样式，不依赖外部 CSS */
-    /* 包含：CSS 变量、动画 keyframes、card/tag/tooltip/skeleton 等基础类 */
+    /* All styles inlined — no external CSS dependencies */
+    /* Includes: CSS variables, animation keyframes, card/tag/tooltip/skeleton base classes */
   </style>
 </head>
 <body>
@@ -115,14 +119,14 @@ description: 为 FaMou 进化算法生成可行解的 Python 代码解生成可�
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // ── 从解中提取的数据（硬编码，来自对代码的分析）──
+    // ── Data extracted from the solution (hardcoded from code analysis) ──
     const SOLUTION_DATA = { /* ... */ };
 
-    // ── 可视化组件 ──
-    // 根据 viz_type 实现对应组件
+    // ── Visualization components ──
+    // Implement the component corresponding to viz_type
 
-    // ── 页面骨架 ──
-    function App() { /* 指标卡片 + 主可视化 + 亮点列表 */ }
+    // ── Page skeleton ──
+    function App() { /* Metric cards + main visualization + highlights list */ }
 
     ReactDOM.render(<App />, document.getElementById('root'));
   </script>
@@ -132,11 +136,11 @@ description: 为 FaMou 进化算法生成可行解的 Python 代码解生成可�
 
 ---
 
-## 注意事项
+## Notes
 
-- **直接从代码中读数据**：将 Python 解里的关键数值（坐标、序列、映射等）直接硬编码进 HTML 的 `SOLUTION_DATA` 常量，不执行 Python 代码，只是读取其中的数据字面量
-- **可视化忠于解的效果**：展示"这个解长什么样"，不是进化历史或算法流程
-- **主可视化区域要大**：是页面视觉中心，占页面 50% 以上
-- **数据规模适配**：节点/任务超过 100 个时，考虑抽样或聚合展示避免拥挤
-- **降级处理**：无法识别具体问题类型时，fallback 到 `custom` 仪表盘展示关键数值
-- **自包含**：所有依赖均通过 CDN 引入，文件本身可离线（CDN 可替换为本地）打开
+- **Read data directly from the code**: Extract key values from the Python solution (coordinates, sequences, mappings, etc.) and hardcode them into the `SOLUTION_DATA` constant in the HTML — do not execute the Python code, only read its data literals.
+- **Visualization must faithfully represent the solution**: Show "what this solution looks like", not the evolutionary history or algorithm flow.
+- **Main visualization area should be large**: It is the visual center of the page, occupying at least 50% of the page.
+- **Adapt to data scale**: When the number of nodes/tasks exceeds 100, consider sampling or aggregating to avoid visual clutter.
+- **Graceful degradation**: If the problem type cannot be identified, fall back to the `custom` dashboard showing key metrics.
+- **Self-contained**: All dependencies are loaded via CDN; the file can be opened offline (CDN links can be replaced with local copies).
