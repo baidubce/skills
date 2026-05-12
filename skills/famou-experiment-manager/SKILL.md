@@ -1,46 +1,49 @@
 ---
 name: famou-experiment-manager
-description: 管理 famou 进化实验任务的工作流技能。当用户提到"提交实验"、"查看实验状态"、"删除实验"、"获取实验结果"、"famou 实验"、"上传实验"、"config.yaml 实验"或需要使用 famou-ctl 管理实验任务时，必须使用此技能。即使用户只说"提交"或"跑实验"，只要上下文涉及 famou 平台，也应触发此技能。
+description: Workflow skill for managing famou evolutionary experiment tasks, including public normal mode and public pro hybrid mode. Use this skill when the user mentions "submit experiment", "check experiment status", "delete experiment", "get experiment results", "account info", "quota", "credits", "famou experiment", "upload experiment", "config.yaml experiment", "hybrid mode", or needs to use famou-ctl to manage experiment tasks. Even if the user just says "submit" or "run experiment", trigger this skill whenever the context involves the famou platform.
+metadata:
+  author: famou-group
+  version: "4.0"
 ---
 
-# Famou 任务管理 Skill
+# Famou Experiment Manager
 
-用于通过 `famou-ctl-sdk` 提交和管理实验任务的完整工作流。
+A complete workflow for submitting and managing experiment tasks via `famou-ctl-sdk`.
 
 ---
 
-## 前置环境检查
+## Prerequisites
 
-### 1.1 检查 famou-ctl-sdk 是否已安装
+### 1.1 Check famou-ctl-sdk Version
 
 ```bash
 famou-ctl --version
 ```
 
-- 若输出版本号，继续下一步
-- 若命令未找到，执行安装：`pip install famou-sdk`
-- 备用安装连接：`pip install famou-sdk -i https://pip.baidu-int.com/simple --pre`
+- Required version: `famou-ctl-sdk >= 1.1.0`.
+- If the installed version is lower than `1.1.0`, upgrade it: `famou-ctl upgrade`
+- If the command is not found, install it: `pip install famou-sdk`
 
-安装完成后再次验证 `famou-ctl --version`，若仍失败，停止并提示用户检查 Python 环境或 pip 源配置。
+After installation or upgrade, verify again with `famou-ctl --version`. If it still fails or the version is still lower than `1.1.0`, stop and ask the user to check their Python environment, pip source configuration, or `famou-ctl` installation path.
 
-### 1.2 检查和配置 API 配置
+### 1.2 Check and Configure API Settings
 
-使用辅助脚本 `scripts/config.py` 检查和配置 API 设置。
+Use the helper script `scripts/config.py` to read and configure API settings.
 
-**检查 API 配置**
+**Read API config:**
 
 ```bash
 python3 scripts/config.py read
 ```
 
-| 检查结果 | 操作 |
-|---------|------|
-| `status: "ok"` | 配置完整，跳过配置 |
-| `status: "missing"` | 执行配置 API Key |
+| Result | Action |
+|--------|--------|
+| `status: "ok"` | Config is complete, skip configuration |
+| `status: "missing"` | Prompt user to enter API key |
 
-**配置 API：**
+**Configure API:**
 
-提示用户输入有效的 **API_KEY**，然后执行配置命令
+Ask the user to provide a valid **API_KEY**, then run:
 
 ```bash
 python3 scripts/config.py write <YOUR_API_KEY>
@@ -48,90 +51,217 @@ python3 scripts/config.py write <YOUR_API_KEY>
 
 ---
 
-## 提交 FaMou 实验
+## Submitting a Famou Experiment
 
-### 2.1 查找 config.yaml 文件
+### 2.1 Choose Submission Mode
 
-在当前工作目录下递归查找所有 `config.yaml` 文件：
+Use the `ask_user` or `question` tool to let the user choose the submission mode before searching for or creating `config.yaml`:
+
+- **Normal mode** — submit directly to the cloud (`cloud_type` omitted)
+- **Hybrid mode** — run local test first, then submit, then start a local evaluator worker (`cloud_type: "hybrid"`)
+
+### 2.2 Find config.yaml
+
+Recursively search for all `config.yaml` files under the current working directory:
 
 ```bash
 find . -name "config.yaml" -type f 2>/dev/null | sort
 ```
 
-**处理结果：**
+**Handle results:**
 
-| 情况 | 操作 |
-|------|------|
-| 找到 1 个 | 直接使用，告知用户路径，继续下一步 |
-| 找到多个 | 使用 `ask_user` 工具询问用户选择哪个 |
-| 未找到 | **报告用户并提示用户创建 config.yaml** |
+| Case | Action |
+|------|--------|
+| Exactly 1 found | Use it directly; inform the user of the path and proceed |
+| Multiple found | Use `ask_user` tool to let the user choose |
+| None found | Report to the user and provide the template for the selected mode |
 
-config.yaml 模板：
+`config.yaml` template:
 
 ```yaml
 evolve_config:
   max_iterations: 100
   population_size: 100
-  num_islands: 2
+  num_islands: 4
 initial_program: "init.py"
 evaluator: "evaluator.py"
 system_message: "prompt.md"
 ```
 
-### 2.2 确认实验目录
+Mode-specific `cloud_type` rule:
 
-将所选 `config.yaml` 的父目录（绝对路径）作为实验目录：
+- Normal mode: omit `cloud_type`. If an existing config contains `cloud_type: "hybrid"`, do not treat it as normal mode.
+- Hybrid mode: add `cloud_type: "hybrid"` before local test or submission.
+
+### 2.3 Confirm Experiment Directory
+
+Use the parent directory of the selected `config.yaml` (as an absolute path) as the experiment directory:
 
 ```bash
-# 示例：若 config.yaml 路径为 ./experiments/my_exp/config.yaml，则实验目录是 /absolute/path/to/experiments/my_exp
-realpath $(dirname <config.yaml路径>)
+# Example: if config.yaml is at ./experiments/my_exp/config.yaml,
+# the experiment directory is /absolute/path/to/experiments/my_exp
+realpath $(dirname <path-to-config.yaml>)
 ```
 
-### 2.3 获取实验名称
+### 2.4 Setting Experiment Name
 
-使用 `ask_user` 工具或直接在对话中请求用户输入实验名称 `experiment_name`, **提示用户实验名称只能包含字母、数字和下划线，且长度不超过20个字符**
+Use the `ask_user` or `question` tool or ask the user in conversation to provide an `experiment_name`. **Remind the user that the experiment name may only contain letters, numbers, and underscores, and must not exceed 20 characters.**
 
-### 2.4 提交实验
+### 2.5 Dry-run Before Creating the Experiment
+
+Before any real experiment creation, run a dry-run from the experiment directory to estimate cost and verify credits:
 
 ```bash
 famou-ctl experiment create \
-  --config <config.yaml绝对路径> \
+  --config ./config.yaml \
   --experiment-name <experiment_name> \
+  --dry-run \
   --json
 ```
 
-**处理输出：**
-- 命令成功：解析 JSON 输出，展示实验 ID、状态等关键信息
-- 命令失败：展示错误信息，提示用户检查配置或网络连接
+- If credits are sufficient, tell the user the estimated cost and **ask whether to submit the experiment now using the `ask_user` or `question` tool**.
+- If credits are insufficient, stop and tell the user the estimated cost, available credits if shown, and that they need to recharge.
 
-### 2.5 实验状态查询
+### 2.6 Normal Mode: Submit the Experiment
 
-**每间隔10s，查询一下实验状态，检查是否通过线上的验证并且正常进入 famou 进化（验证需要消耗一些时间，因此需要轮训检查实验状态）**
-  
-- 实验失败：修复评估器和初始解，删除失败的实验，重新提交
-- 验证成功：输出实验状态并结束
-
---- 
-
-## FaMou 实验其他操作
-
-### 步骤 1：确认 experiment-id
-
-- 查找上下文到 experiment-id，直接使用
-- 若未提供，使用 `ask_user` 工具请求用户输入
-
-### 步骤 2: 执行相应的命令
-
-**当通知用户有哪些能力时，不能显示具体命令，直接告知有哪些能力即可**
+First complete **2.5 Dry-run Before Creating the Experiment**. Only proceed if credits are sufficient and the user confirms submission.
 
 ```bash
-famou-ctl experiment status <experiment-id> --json  # 查看实验状态
-famou-ctl experiment cancel <experiment-id> --json  # 取消实验
-famou-ctl experiment delete <experiment-id> --json  # 删除实验
-famou-ctl experiment logs <experiment-id> --follow/-f --output <file-path> --api-url <url> --json  # 查看并保存实验日志
-famou-ctl experiment results <experiment-id> --output <file-path> --json  # 查看实验结果
+famou-ctl experiment create \
+  --config <absolute-path-to-config.yaml> \
+  --experiment-name <experiment_name> \
+  -y \
+  --json
 ```
 
-**处理输出：**
-- 命令成功：解析 JSON，清晰展示实验状态、进度、创建时间等信息
-- 命令失败：展示错误信息，提示检查 experiment-id 是否正确或网络连接
+**Handle output:**
+- Command succeeds: Parse the JSON output and display key information such as experiment ID and status.
+- Poll experiment status every 30 seconds until online validation finishes.
+- Validation passed: Continue polling until the experiment has completed 1 to 2 evolution rounds, then print the experiment status and stop polling.
+- Validation failed: Show the failure details, fix the evaluator and initial solution as needed, delete the failed experiment, then resubmit.
+- Command fails: Show the error message and prompt the user to check their configuration or network connection.
+
+### 2.7 Hybrid Mode: Submit the Experiment
+
+Cloud generates code; local evaluator worker evaluates and pushes results back. Start the worker once after the experiment is created.
+
+#### 2.7.1 Run local test
+
+Run the local test from the experiment directory. If the user did not specify a timeout, use a reasonable default such as `300`.
+
+```bash
+famou-ctl test --config ./config.yaml --timeout <timeout_seconds>
+```
+
+Handle output:
+
+- Test succeeds: continue to submission.
+- Test fails: stop submission, show the relevant error, fix `evaluator.py`, `init.py`, `prompt.md`, or `config.yaml` as needed, then rerun the local test.
+
+#### 2.7.2 Submit the experiment
+
+First complete **2.5 Dry-run Before Creating the Experiment**. Only proceed if credits are sufficient and the user confirms submission.
+
+```bash
+famou-ctl experiment create \
+  --config <absolute-path-to-config.yaml> \
+  --experiment-name <experiment_name> \
+  -y \
+  --json
+```
+
+On success, parse and keep the `experiment_id`. The evaluator worker and monitoring steps require this ID.
+
+#### 2.7.3 Start local evaluator worker
+
+From the experiment directory, create `.famou/`, clear any previous `.famou/eval_trace`, then start the evaluator as a background process. Redirect all output to `.famou/eval_trace` and save the process ID.
+
+```bash
+mkdir -p .famou
+: > .famou/eval_trace
+nohup famou-ctl evaluator start \
+  --experiment-id <experiment_id> \
+  --evaluator-path ./evaluator.py \
+  --max-concurrent=1 \
+  > .famou/eval_trace 2>&1 &
+echo $! > .famou/evaluator.pid
+```
+
+If the runtime provides a built-in background shell/session mechanism, prefer it, but still redirect the evaluator output to `.famou/eval_trace`.
+
+After starting the worker:
+
+- Confirm `.famou/eval_trace` exists.
+- Check `.famou/evaluator.pid` and verify the process is alive when the local environment supports PID checks.
+
+#### 2.7.4 Monitor evaluator worker
+
+Poll experiment status until online validation passes and the experiment has completed 1 to 3 evolution rounds. After that, stop polling experiment status and continue monitoring only the local evaluator worker.
+
+Recommended check behavior:
+
+- Poll experiment status every 30 seconds until online validation finishes.
+- If validation fails, fix the evaluator and initial solution as needed, delete the failed experiment, then resubmit.
+- If validation passes, continue polling until 3 to 5 evolution rounds have completed, then stop polling experiment status.
+- Read the last 50 to 100 lines of `.famou/eval_trace`.
+- Detect obvious evaluator errors, crashes, authentication failures, or repeated upload failures.
+- Verify the evaluator process is still alive if `.famou/evaluator.pid` exists and PID checks are available.
+
+For worker health checks, use a modest interval, for example every 1 to 5 minutes. Avoid starting multiple evaluator workers for the same experiment.
+
+### 2.8 Experiment Status JSON Parsing
+
+When parsing `famou-ctl experiment status <experiment-id> --json`, keep the outer and inner `status` fields separate. Do not flatten or overwrite fields with the same name.
+
+- Outer `status`: indicates the overall experiment is active/running on the Famou cloud.
+- Inner `status`: indicates the current Famou cloud stage.
+- Inner `status: "INITIALING"`: the experiment is validating input. The progress value is validation progress. Continue polling until validation finishes.
+- Inner `status: "RUNNING"`: the experiment has entered the evolution stage. The progress value is evolution progress. Continue polling until the desired 3 to 5 evolution rounds have completed.
+
+When reporting status to the user, label these values distinctly, for example as overall status, current stage, stage progress, and evolution rounds.
+
+---
+
+## Other Experiment Operations
+
+### Step 1: Confirm required inputs
+
+- For `list`, no experiment ID is required. If the user asks for a status-specific list, use the requested status filter.
+- For `status`, `pause`, `resume`, `cancel`, `delete`, `logs`, `results`, and `report`, look for `experiment-id` in the conversation context and use it directly.
+- If an experiment ID is required but not available, use the `ask_user` tool to request it from the user.
+- For `logs`, `results`, and `report`, if the user asks to save output but does not provide a file path, ask for the desired output path.
+
+### Step 2: Run the appropriate command
+
+**When informing the user of available capabilities, do NOT display the raw commands — just describe what each capability does.**
+
+```bash
+famou-ctl experiment list    --status <status> --json                                      # List experiments, optionally filtered by status
+famou-ctl experiment status  <experiment-id> --json                                        # Check experiment status
+famou-ctl experiment pause   <experiment-id> --json                                        # Pause running experiment
+famou-ctl experiment resume  <experiment-id> --json                                        # Resume paused experiment
+famou-ctl experiment cancel  <experiment-id> --json                                        # Cancel experiment
+famou-ctl experiment delete  <experiment-id> --json                                        # Delete experiment
+famou-ctl experiment logs    <experiment-id> --follow/-f --output <file-path> --json       # View and save experiment logs
+famou-ctl experiment results <experiment-id> --output <file-path> --json                   # View experiment results
+famou-ctl experiment report  <experiment-id> --output <file-path> --json                   # Download experiment report in PDF format
+```
+
+**Handle output:**
+- Command succeeds: Parse JSON output using the status parsing rule above, then clearly display overall status, current stage, progress, creation time, and other key information.
+- If the response includes credit or remaining allowance fields, display them exactly as returned, including numbers, units, and expiration dates; do not modify, omit, or merge them.
+- Command fails: Show the error message and prompt the user to verify the `experiment-id` or check their network connection.
+
+---
+
+## Account Operations
+
+When the user asks about account details, quota, credits, balance, usage, or remaining allowance, run:
+
+```bash
+famou-ctl account info
+```
+
+**Handle output:**
+- Command succeeds: Summarize the account identity and quota/credit fields shown by the command. Preserve exact numbers, units, and expiration dates if present.
+- Command fails: For authentication or configuration errors, ask the user to verify API settings using the configuration workflow above. For network or server errors, show the relevant error and suggest retrying later or checking network connectivity.

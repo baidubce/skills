@@ -1,64 +1,39 @@
 ---
 name: famou-artifact-generator
-description: Interactive end-to-end FaMou task solving workflow in three steps: (1) data understanding and problem definition, producing `problem.md`; (2) implementing and validating `evaluator.py`, `init.py`, and `prompt.md` based on `problem.md`; (3) deep solving via Auto-Search or FaMou. Trigger this skill whenever the user wants to define, clarify, or create a FaMou task, prepare FaMou experiment artifacts, write or fix `problem.md`, `evaluator.py`, `init.py`, or `prompt.md`, do FaMou solving, run deep solving, or solve an optimization / ML / search problem with evolutionary methods. Even if the user simply says "help me make a FaMou task", "help me solve this", or "run FaMou", trigger this skill if the context involves optimization or search.
+description: Interactive end-to-end Famou workflow for defining, implementing, and solving optimization tasks. The workflow typically proceeds in three stages: (1) understand the data and define the task, producing `problem.md`; (2) implement and validate `evaluator.py`, `init.py`, and `prompt.md` from the task definition; (3) run deep solving through Famou. Trigger this skill whenever the user wants to define, clarify, create, or fix a Famou task; prepare Famou experiment artifacts; write or update `problem.md`, `evaluator.py`, `init.py`, or `prompt.md`; run Famou; do deep solving; or solve an optimization, ML, or search problem with evolutionary methods. Even if the user simply says "help me make a Famou task", "help me solve this", or "run Famou", trigger this skill whenever the surrounding context indicates an optimization or search task. Also trigger when the user describes a combinatorial optimization, scheduling, routing, or ML problem without mentioning Famou — treat it as a potential Famou task.
 metadata:
   author: famou-group
-  version: "2.0"
+  version: "9.0"
 ---
 
-# FaMou Task Solver — Three-Step Workflow
+# Famou Workflow Router
 
-Transform user-provided data and requirements into a runnable FaMou solving experiment.
+Route user tasks to the correct workflow.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Input: user description / data files / documents           │
-│           ↓                                                  │
-│  Step 1  Data Understanding & Problem Definition            │
-│                            → problem.md                     │
-│           ↓                                                  │
-│  Step 2  Adapter Implementation                             │
-│                            → evaluator.py                   │
-│                            → init.py                        │
-│                            → prompt.md                      │
-│           ↓                                                  │
-│  Step 3  Deep Solving (user's choice)                       │
-│                            → Auto-Search or FaMou           │
-│                                                             │
-│  Output: best solution + score                              │
-└─────────────────────────────────────────────────────────────┘
-```
+## Responsibilities
 
----
+1. Identify task type from user description
+2. Select exactly one workflow file in `references/`
+3. Delegate execution to that workflow
+4. Do not embed step details — those belong in workflows and components
 
-## Step Navigation
+## Routing Rules
 
-**Read the reference file before entering each step.**
+**Priority order:**
 
-| Step | Core Task | Input | Output | Reference |
-|------|-----------|-------|--------|-----------|
-| Step 1 | Data understanding, workspace analysis, interactive clarification, problem definition | User description + data files | `problem.md` | `references/step1-problem-definition.md` |
-| Step 2 | Implement evaluator, initial solution, prompt | `problem.md` | `evaluator.py` `init.py` `prompt.md` | `references/step2-adapter.md` |
-| Step 3 | Choose solving engine, execute | `evaluator.py` `init.py` `prompt.md` | Best solution + score | `references/step3-solving.md` |
+1. **User choice**: If the user explicitly names a workflow, use it
+2. **Automatic routing**: Otherwise, match by task characteristics:
 
----
+## Workflow Selection
+
+| Workflow | When to Use |
+|----------|-------------|
+| `general` | Generic optimization, search, planning, scheduling, or ML tasks — all other cases |
 
 ## Execution Flow
 
-```
-① Read references/step1-problem-definition.md
-   → Analyze workspace and user data
-   → Clarify problem interactively
-   → Write problem.md as the task contract, wait for user confirmation
+1. **Route**: Determine workflow based on routing rules
+2. **Delegate**: Read the selected file in `references/` and follow its instructions
+3. **Exit**: After delegation, router's job is complete
 
-② Read references/step2-adapter.md
-   → Implement the adapter using problem.md + the fixed Step 2 implementation contract
-   → Validate evaluator + init locally
-   → Present to user for confirmation
-
-③ Read references/step3-solving.md
-   → Ask user to choose solving method
-   → Execute and return best solution
-```
-
-**Each step requires explicit user confirmation before proceeding.**
+If uncertain, default to `general` workflow and note assumptions.
