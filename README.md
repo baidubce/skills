@@ -91,6 +91,8 @@ Purpose:
 
 ## Try in Claude Code
 
+### Method 1: Plugin Marketplace
+
 You can register this repository as a Claude Code Plugin marketplace by running the following command in Claude Code:
 ```
 /plugin marketplace add baidubce/skills
@@ -101,6 +103,27 @@ Then, to install a specific set of skills:
 2. Select `bce-agent-skills`
 3. Select the skill set you want
 4. Select `Install now`
+
+### Method 2: Manual Copy
+
+Clone the repository and copy the skills to your Claude skills directory:
+
+```bash
+rm -rf ~/.claude/skills/famou-*                    # remove old version
+git clone https://github.com/baidubce/skills.git   # download from github
+cp -r skills/skills/* ~/.claude/skills/            # install to claude-code config directory
+npx skills list -g                                 # view all installed skill
+```
+
+### Method 3: npx skills
+
+Use `npx skills` to manage the installation. First clean up the old famou skills, then remove the registered package, and finally install from the new source:
+
+```bash
+rm -rf ~/.claude/skills/famou-*
+npx skills remove bce-skills
+npx skills add https://github.com/baidubce/skills/tree/develop
+```
 
 ## Creating a Basic Skill
 
