@@ -6,7 +6,7 @@ metadata:
   version: "9.0"
 ---
 
-# Famou Workflow Router
+# FaMou Workflow Router
 
 Route user tasks to the correct workflow.
 
@@ -37,3 +37,4 @@ Route user tasks to the correct workflow.
 3. **Exit**: After delegation, router's job is complete
 
 If uncertain, default to `general` workflow and note assumptions.
+
