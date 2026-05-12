@@ -115,16 +115,6 @@ cp -r skills/skills/* ~/.claude/skills/            # install to claude-code conf
 npx skills list -g                                 # view all installed skill
 ```
 
-### Method 3: npx skills
-
-Use `npx skills` to manage the installation. First clean up the old famou skills, then remove the registered package, and finally install from the new source:
-
-```bash
-rm -rf ~/.claude/skills/famou-*
-npx skills remove bce-skills
-npx skills add https://github.com/baidubce/skills/tree/develop
-```
-
 ## Creating a Basic Skill
 
 Skills are simple to create - just a folder with a `SKILL.md` file containing YAML frontmatter and instructions. You can use the **template** in this repository as a starting point:
