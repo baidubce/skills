@@ -249,6 +249,7 @@ famou-ctl experiment report  <experiment-id> --output <file-path> --json        
 **Handle output:**
 - Command succeeds: Parse JSON output using the status parsing rule above, then clearly display overall status, current stage, progress, creation time, and other key information.
 - If the response includes credit or remaining allowance fields, display them exactly as returned, including numbers, units, and expiration dates; do not modify, omit, or merge them.
+- For `cancel` command, the response includes `credits_used` (pre-deducted credits at submission) and `credits_refunded` (credits returned after cancellation). Display both clearly.
 - Command fails: Show the error message and prompt the user to verify the `experiment-id` or check their network connection.
 
 ---
