@@ -29,6 +29,7 @@ def evaluate(path_user_py: str, task_name: str = "default", timeout: int = 3600)
         "combined_score": float,
         "cost_time": float,
         "error_info": str,
+        "metric": dict,
     }
 ```
 
@@ -37,6 +38,7 @@ Rules:
 - `validity` indicates whether the candidate is a valid feasible solution; `1` means it runs correctly and satisfies all required constraints.
 - `combined_score` must be numeric and higher-is-better: `0` means the solution is invalid, a low score means the solution is valid but performs poorly, and a high score means the algorithm quality is high.
 - `error_info` describes the reason for failure; if the solution is valid and correct, `error_info` must be `""`.
+- `metric` is a dictionary for a small amount of additional information, such as auxiliary metrics or inspection details.
 - You may add additional return fields beyond the core ones when they help debugging, analysis, or downstream inspection.
 - Default parameter values such as `task_name` and `timeout` may be adjusted dynamically when needed, as long as the evaluator interface remains compatible with the contract.
 - The evaluator must work even if `init.py` is not in the same directory.
@@ -44,6 +46,7 @@ Rules:
 - Do not depend on a temporary directory as the working directory.
 - If task data is needed, `evaluator.py` resolves the absolute data path and passes it to `init.py`.
 - `init.py` must not infer data paths from cwd, `__file__`, or hard-coded relative paths.
+- **Important:** The evaluator must catch hidden invalidity, especially ML data leakage, future leakage, target leakage, train/test contamination, or any use of information unavailable at prediction/decision time.
 
 Execution flow:
 
@@ -64,6 +67,7 @@ Requirements:
 - satisfies all hard constraints
 - uses a simple, stable, baseline strategy
 - if task data is needed, read it from the path argument supplied by `evaluator.py`; do not infer paths yourself
+- must avoid hidden invalid shortcuts such as leakage, future information, or assumptions the evaluator should reject
 
 Prefer a deterministic heuristic, greedy method, simple rule-based baseline, or other lightweight valid solution.
 
@@ -111,8 +115,9 @@ If validation fails, fix the relevant file and rerun.
 2. path or working-directory handling
 3. missing or malformed output
 4. incorrect hard-constraint checks
-5. wrong score mapping
-6. evaluator cannot distinguish feasible solutions of different quality
+5. hidden invalidity not caught
+6. wrong score mapping
+7. evaluator cannot distinguish feasible solutions of different quality
 
 ## 6. Final Review
 

@@ -9,10 +9,12 @@
 
 Your goal is to build a complete mental model of the workspace before asking the user anything. Read first, ask later.
 
-**DO:** Explore data files, scripts, README, and configs.  
-**DO:** Understand scale, format, interfaces, and what they imply about the problem.  
-**DO NOT:** Stop at a surface-level inventory.  
-**DO NOT:** Ask the user anything in this phase.
+**DO:** Review data files, user-provided schemas/descriptions, business documents, relevant code, README, and configs.  
+**DO:** Understand scale, format, interfaces, data quality, and what they imply about the problem.  
+**DO:** For complex data, use the `famou-data-analysis` skill when it helps clarify structure, quality, or meaning.  
+**DO NOT:** Stop at a surface-level inventory; connect evidence to task semantics, constraints, and evaluation.  
+**DO NOT:** Guess unclear business meaning, data semantics, or code intent; record doubts and confirm them in the clarification loop.  
+**DO NOT:** Ask the user anything before completing this initial scan.
 
 Report findings before moving on:
 
