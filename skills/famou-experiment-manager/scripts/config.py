@@ -6,8 +6,7 @@ import os
 import sys
 
 SETTINGS_PATH = os.path.expanduser("~/.famou-ctl/settings.json")
-# DEFAULT_API_URL = "https://pro-service.famou.com"
-DEFAULT_API_URL = "http://100.66.59.54:8080"
+DEFAULT_API_URL = "https://pro-service.famou.com"
 DEFAULT_USER_ID = "default"
 
 
