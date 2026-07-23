@@ -1,6 +1,6 @@
 # Component — Deep Solving
 
-**Input**: `evaluator.py`, `init.py`, `prompt.md`  
+**Input**: `evaluator.py`, `init.py`, `prompt.md`
 **Output**: Best `init.py` + score
 
 ---
@@ -22,13 +22,19 @@ experiment/
 
 Prepare these artifacts, then invoke the `famou-experiment-manager` skill to submit the experiment. Let that skill decide how the experiment should be packaged and submitted.
 
-After submission, inform the user: *"Experiment submitted — Famou jobs can take a while. I'll check status periodically; feel free to do other things."*
+After submission, inform the user:
+
+*"Experiment submitted — Famou jobs can take a while. I'll check status periodically and run a read-only diagnosis every 20 evolution rounds by default; feel free to do other things. You can also ask me to diagnose the experiment at any time."*
+
+If the user requests diagnosis, invoke the `famou-experiment-diagnosis` skill with the current `experiment_id` and experiment directory. Diagnosis is read-only and must not interrupt or modify the running experiment.
 
 **Status polling** — use the `famou-experiment-manager` skill to query status every 20 seconds until the job completes. Report progress at each check:
 
 ```
 ⏳ [HH:MM] Experiment <id> — status: running | iterations: 42/200 | best_score: 0.1234
 ```
+
+**Periodic diagnosis** — during status polling, invoke the `famou-experiment-diagnosis` skill once every 20 completed evolution rounds by default, using the current `experiment_id` and experiment directory. Continue status polling after reporting the diagnosis.
 
 Once complete, use the `famou-experiment-manager` skill to retrieve results and proceed to the Result Report.
 
