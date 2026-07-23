@@ -1,0 +1,4 @@
+interface:
+  display_name: "Famou Experiment Diagnosis"
+  short_description: "Diagnose Famou experiment quality and search health"
+  default_prompt: "Diagnose the current Famou experiment using its latest results and code, then recommend the next action."

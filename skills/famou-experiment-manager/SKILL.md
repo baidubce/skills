@@ -1,114 +1,61 @@
 ---
 name: famou-experiment-manager
-description: Workflow skill for managing famou evolutionary experiment tasks, including public normal mode and public pro hybrid mode. Use this skill when the user mentions "submit experiment", "check experiment status", "delete experiment", "get experiment results", "account info", "quota", "credits", "famou experiment", "upload experiment", "config.yaml experiment", "hybrid mode", or needs to use famou-ctl to manage experiment tasks. Even if the user just says "submit" or "run experiment", trigger this skill whenever the context involves the famou platform.
+description: 'Manage public and hybrid Famou experiments via famou-ctl: submit config.yaml tasks; inspect status, manifests, leaderboards, logs, and reports; fetch ranked or top results; pause, resume, update, continue, cancel, or delete runs; and check account quota or credits. Use for Famou experiment lifecycle and result-management requests, including short requests such as "submit", "run experiment", or "download the top result".'
 metadata:
   author: famou-group
-  version: "4.0"
+  version: "5.0"
 ---
-
 # Famou Experiment Manager
 
-A complete workflow for submitting and managing experiment tasks via `famou-ctl-sdk`.
-
----
+Manage public and hybrid Famou experiments through `famou-ctl-sdk`.
 
 ## Prerequisites
 
-### 1.1 Check famou-ctl-sdk Version
+Run `famou-ctl --version`. Require `famou-ctl-sdk >= 2.0.0`; use `famou-ctl upgrade` for an older version or `pip install famou-sdk==2.0.0` when missing, then verify again. If verification still fails, stop and ask the user to check the active Python environment, pip source, and executable path.
+
+Read API configuration. Resolve `<skill-path>` to the absolute path of this skill directory:
 
 ```bash
-famou-ctl --version
+python3 <skill-path>/scripts/config.py read
 ```
 
-- If the command is not found, install it: `pip install famou-sdk`
-- If the command is found, check the version number. **The required version is `1.1.0`**. For example, `1.0.0` does not meet the requirement. If the version is not `1.1.0`, upgrade it: `pip install famou-sdk==1.1.0`
+- If `status` is `ok`, continue.
+- If `status` is `missing`, ask for an API key and run `python3 <skill-path>/scripts/config.py write <API_KEY>`.
 
-After installation or upgrade, verify again with `famou-ctl --version`. If the command still fails or the version is still not `1.1.0`, tell the user to manually install `famou-ctl-sdk` version `1.1.0` and exit.
+## Submit an Experiment
 
-### 1.2 Check and Configure API Settings
+### 1. Resolve Mode, Config, and Name
 
-Use the helper script `scripts/config.py` to read and configure API settings.
+Before searching for or creating `config.yaml`, use the available `ask_user` or `question` tool to let the user choose:
 
-**Read API config:**
+- **Normal**: submit directly to the cloud (`cloud_type` omitted)
+- **Hybrid**: run local test first, then submit, then start a local evaluator worker (`cloud_type: "hybrid"`)
 
-```bash
-python3 scripts/config.py read
-```
-
-| Result | Action |
-|--------|--------|
-| `status: "ok"` | Config is complete, skip configuration |
-| `status: "missing"` | Prompt user to enter API key |
-
-**Configure API:**
-
-Ask the user to provide a valid **API_KEY**, then run:
-
-```bash
-python3 scripts/config.py write <YOUR_API_KEY>
-```
-
----
-
-## Submitting a Famou Experiment
-
-### 2.1 Choose Submission Mode
-
-Use the `ask_user` or `question` tool to let the user choose the submission mode before searching for or creating `config.yaml`:
-
-- **Normal mode** — submit directly to the cloud (`cloud_type` omitted)
-- **Hybrid mode** — run local test first, then submit, then start a local evaluator worker (`cloud_type: "hybrid"`)
-
-### 2.2 Find config.yaml
-
-Recursively search for all `config.yaml` files under the current working directory:
+Search recursively from the working directory:
 
 ```bash
 find . -name "config.yaml" -type f 2>/dev/null | sort
 ```
 
-**Handle results:**
-
-| Case | Action |
-|------|--------|
-| Exactly 1 found | Use it directly; inform the user of the path and proceed |
-| Multiple found | Use `ask_user` tool to let the user choose |
-| None found | Report to the user and provide the template for the selected mode |
-
-`config.yaml` template:
+Use the only match directly, use the available `ask_user` or `question` tool to choose among multiple matches, or report no match and provide this template:
 
 ```yaml
 evolve_config:
-  max_iterations: 100
-  population_size: 100
-  num_islands: 4
+  max_iterations: 50
+  population_size: 50
+  num_islands: 2
 initial_program: "init.py"
 evaluator: "evaluator.py"
 system_message: "prompt.md"
 ```
 
-Mode-specific `cloud_type` rule:
+Use the absolute parent directory of the selected config as the experiment directory. Use the available `ask_user` or `question` tool, or ask in conversation, for an `experiment_name`; it may contain only letters, numbers, and underscores and must be at most 20 characters.
 
-- Normal mode: omit `cloud_type`. If an existing config contains `cloud_type: "hybrid"`, do not treat it as normal mode.
-- Hybrid mode: add `cloud_type: "hybrid"` before local test or submission.
+### 2. Normal Mode
 
-### 2.3 Confirm Experiment Directory
+Use normal mode only when `cloud_type` is omitted. Do not treat a config containing `cloud_type: "hybrid"` as normal.
 
-Use the parent directory of the selected `config.yaml` (as an absolute path) as the experiment directory:
-
-```bash
-# Example: if config.yaml is at ./experiments/my_exp/config.yaml,
-# the experiment directory is /absolute/path/to/experiments/my_exp
-realpath $(dirname <path-to-config.yaml>)
-```
-
-### 2.4 Setting Experiment Name
-
-Use the `ask_user` or `question` tool or ask the user in conversation to provide an `experiment_name`. **Remind the user that the experiment name may only contain letters, numbers, and underscores, and must not exceed 20 characters.**
-
-### 2.5 Dry-run Before Creating the Experiment
-
-Before any real experiment creation, run a dry-run from the experiment directory to estimate cost and verify credits:
+From the experiment directory, run a dry-run to estimate cost and verify credits:
 
 ```bash
 famou-ctl experiment create \
@@ -121,9 +68,7 @@ famou-ctl experiment create \
 - If credits are sufficient, tell the user the estimated cost and **ask whether to submit the experiment now using the `ask_user` or `question` tool**.
 - If credits are insufficient, stop and tell the user the estimated cost, available credits if shown, and that they need to recharge.
 
-### 2.6 Normal Mode: Submit the Experiment
-
-First complete **2.5 Dry-run Before Creating the Experiment**. Only proceed if credits are sufficient and the user confirms submission.
+Only after confirmation, create the experiment:
 
 ```bash
 famou-ctl experiment create \
@@ -133,49 +78,41 @@ famou-ctl experiment create \
   --json
 ```
 
-**Handle output:**
-- Command succeeds: Parse the JSON output and display key information such as experiment ID and status.
-- Poll experiment status every 30 seconds until online validation finishes.
-- Validation passed: Continue polling until the experiment has completed 1 to 2 evolution rounds, then print the experiment status and stop polling.
-- Validation failed: Show the failure details, fix the evaluator and initial solution as needed, delete the failed experiment, then resubmit.
-- Command fails: Show the error message and prompt the user to check their configuration or network connection.
+On success, report the experiment ID and status. Poll status every 30 seconds until online validation finishes. If validation fails, show the details and stop. If it passes, continue until at least 1 to 2 evolution rounds complete, report status, and stop polling.
 
-### 2.7 Hybrid Mode: Submit the Experiment
+### 3. Hybrid Mode
 
-Cloud generates code; local evaluator worker evaluates and pushes results back. Start the worker once after the experiment is created.
+Hybrid mode runs the evaluator locally while the cloud generates candidate code.
 
-#### 2.7.1 Run local test
+#### 3.1 Prepare and Test Locally
 
-Run the local test from the experiment directory. If the user did not specify a timeout, use a reasonable default such as `300`.
+Add `cloud_type: "hybrid"` to `config.yaml`, keep `evaluator` for the local test, and run from the experiment directory:
 
 ```bash
-famou-ctl test --config ./config.yaml --timeout <timeout_seconds>
+famou-ctl test --config ./config.yaml --timeout <timeout_seconds> --json
 ```
 
-Handle output:
+Default to a reasonable timeout such as `300`. On failure, stop submission, show the relevant error, fix the affected `evaluator.py`, `init.py`, `prompt.md`, or `config.yaml`, and rerun the test.
 
-- Test succeeds: continue to submission.
-- Test fails: stop submission, show the relevant error, fix `evaluator.py`, `init.py`, `prompt.md`, or `config.yaml` as needed, then rerun the local test.
+After the local test succeeds, remove the `evaluator` item from `config.yaml` before cloud submission. Keep the local `evaluator.py` file for the evaluator worker.
 
-#### 2.7.2 Submit the experiment
+#### 3.2 Submit to Cloud
 
-First complete **2.5 Dry-run Before Creating the Experiment**. Only proceed if credits are sufficient and the user confirms submission.
+Follow the **Normal Mode** flow in Section 2 (dry-run, credit check, confirmation, and create), using the submission-ready hybrid config (with `evaluator` removed from the YAML). After creation, parse and keep the experiment ID for evaluator startup and monitoring.
 
-```bash
-famou-ctl experiment create \
-  --config <absolute-path-to-config.yaml> \
-  --experiment-name <experiment_name> \
-  -y \
-  --json
-```
+#### 3.3 Start the Local Evaluator
 
-On success, parse and keep the `experiment_id`. The evaluator worker and monitoring steps require this ID.
+**Before presenting the startup options, you must explicitly warn the user** that a worker started from the current session may be reclaimed on DuMate, WorkBuddy, QoderWork, TraeWork, and similar sandboxed platforms. If that happens, the evaluator must be restarted manually. Strongly recommend a manual start because it is less likely to be reclaimed. **Do not skip this warning.**
 
-#### 2.7.3 Start local evaluator worker
+Require the user to explicitly choose one of the following using the available `ask_user` or `question` tool. **Do not start the local evaluator until a choice is received**:
 
-From the experiment directory, create `.famou/`, clear any previous `.famou/eval_trace`, then start the evaluator as a background process. Redirect all output to `.famou/eval_trace` and save the process ID.
+- **Option-1 Manual start (strongly recommended):** reset the evaluator trace and PID, then guide the user through the Terminal steps below.
+- **Option-2 Automatic start:** confirm the risk, then initialize and start the worker here.
+
+For a manual start, tell the user to open a local Terminal, enter the absolute experiment directory, and run the macOS/Linux command below; on Windows, use an equivalent command to run the evaluator in the background, redirect output to `.famou/eval_trace`, and record/check its PID:
 
 ```bash
+cd <absolute-experiment-directory>
 mkdir -p .famou
 : > .famou/eval_trace
 nohup famou-ctl evaluator start \
@@ -186,49 +123,84 @@ nohup famou-ctl evaluator start \
 echo $! > .famou/evaluator.pid
 ```
 
-If the runtime provides a built-in background shell/session mechanism, prefer it, but still redirect the evaluator output to `.famou/eval_trace`.
+For an automatic start, create `.famou/`, clear `.famou/eval_trace`, and run the same `nohup` command from the experiment directory. If the runtime provides a built-in background shell/session mechanism, prefer it, but still redirect the evaluator output to `.famou/eval_trace`.
 
-After starting the worker:
+After either start method:
 
 - Confirm `.famou/eval_trace` exists.
 - Check `.famou/evaluator.pid` and verify the process is alive when the local environment supports PID checks.
 
-#### 2.7.4 Monitor evaluator worker
+#### 3.4 Validate and Monitor
 
-Poll experiment status until online validation passes and the experiment has completed 1 to 3 evolution rounds. After that, stop polling experiment status and continue monitoring only the local evaluator worker.
+Follow Normal Mode's polling flow in Section 2. After at least 1 to 2 evolution rounds complete, stop experiment status polling and continue monitoring only the local evaluator worker:
 
-Recommended check behavior:
-
-- Poll experiment status every 30 seconds until online validation finishes.
-- If validation fails, fix the evaluator and initial solution as needed, delete the failed experiment, then resubmit.
-- If validation passes, continue polling until 3 to 5 evolution rounds have completed, then stop polling experiment status.
 - Read the last 50 to 100 lines of `.famou/eval_trace`.
 - Detect obvious evaluator errors, crashes, authentication failures, or repeated upload failures.
 - Verify the evaluator process is still alive if `.famou/evaluator.pid` exists and PID checks are available.
 
 For worker health checks, use a modest interval, for example every 1 to 5 minutes. Avoid starting multiple evaluator workers for the same experiment.
 
-### 2.8 Experiment Status JSON Parsing
+#### 3.5 Manual Recovery Mode
 
-When parsing `famou-ctl experiment status <experiment-id> --json`, keep the outer and inner `status` fields separate. Do not flatten or overwrite fields with the same name.
+Use this flow when a previously started local evaluator has stopped, including after a sandbox or session reclaims the process. Do not clear `.famou/eval_trace` during recovery; append new output so the prior failure remains inspectable.
 
-- Outer `status`: indicates the overall experiment is active/running on the Famou cloud.
-- Inner `status`: indicates the current Famou cloud stage.
-- Inner `status: "INITIALING"`: the experiment is validating input. The progress value is validation progress. Continue polling until validation finishes.
-- Inner `status: "RUNNING"`: the experiment has entered the evolution stage. The progress value is evolution progress. Continue polling until the desired 3 to 5 evolution rounds have completed.
+Use the macOS/Linux commands below; on Windows, use equivalent commands to check the recorded PID and restart the evaluator in the background with output appended to `.famou/eval_trace`.
 
-When reporting status to the user, label these values distinctly, for example as overall status, current stage, stage progress, and evolution rounds.
+1. Open a terminal.
+2. Enter the experiment directory and check the evaluator process:
 
----
+```bash
+cd <absolute-experiment-directory>
+if [ -f .famou/evaluator.pid ] && kill -0 "$(cat .famou/evaluator.pid)" 2>/dev/null; then
+  echo "Evaluator is running (PID $(cat .famou/evaluator.pid))"
+else
+  echo "Evaluator is not running"
+fi
+```
+
+3. Only if it is not running, restart it:
+
+```bash
+nohup famou-ctl evaluator start \
+  --experiment-id <experiment_id> \
+  --evaluator-path ./evaluator.py \
+  --max-concurrent=1 \
+  >> .famou/eval_trace 2>&1 &
+echo $! > .famou/evaluator.pid
+```
+
+Do not run the restart command when Step 2 reports that the evaluator is running. Each hybrid experiment must have only one evaluator process.
+
+## JSON Handling
+
+All `--json` commands return either `success: true` with `data`, or `success: false` with `msg` and `error_type`. Never read `data` from a failed response.
+
+For experiment status, read state from `data.status`. Report `current_iteration`, `max_iterations`, `progress`, `progress_stage`, `progress_status`, and `progress_message` separately when present; do not use the obsolete outer/inner status interpretation.
+
+Handle errors as follows:
+
+- `INVALID_ARGUMENT`: correct the request.
+- `AUTH_ERROR`: ask the user to log in or verify API configuration.
+- `PERMISSION_ERROR`: report the permission problem.
+- `SYSTEM_NETWORK`: suggest retrying.
+- `API_ERROR`: preserve the backend message.
+
+For every operation, report relevant warnings, ignored changes, costs, and output paths. Preserve credit and remaining-allowance values exactly, including numbers, units, and expiration dates.
 
 ## Other Experiment Operations
 
 ### Step 1: Confirm required inputs
 
 - For `list`, no experiment ID is required. If the user asks for a status-specific list, use the requested status filter.
-- For `status`, `pause`, `resume`, `cancel`, `delete`, `logs`, `results`, and `report`, look for `experiment-id` in the conversation context and use it directly.
+- For `status`, `pause`, `resume`, `update`, `continue`, `cancel`, `delete`, `logs`, `leaderboard`, `results`, `manifest`, and `report`, look for `experiment-id` in the conversation context and use it directly.
 - If an experiment ID is required but not available, use the `ask_user` tool to request it from the user.
-- For `logs`, `results`, and `report`, if the user asks to save output but does not provide a file path, ask for the desired output path.
+- For `logs` and `report`, if the user asks to save output but does not provide a file path, ask for it. For `results`, use the SDK default output directory unless the user provides one.
+
+### Step 1.5: Hybrid Evaluator Check
+
+For a known running hybrid experiment, before lifecycle operations, check whether the local evaluator worker is alive. If it is absent, tell the user to restart it manually using Section 3.5; do not start a new worker automatically.
+
+Request manual restart only for `RUNNING` experiments; do not request it for `PAUSED`, terminal, cancelled, or deleted experiments.
 
 ### Step 2: Run the appropriate command
 
@@ -239,18 +211,28 @@ famou-ctl experiment list    --status <status> --json                           
 famou-ctl experiment status  <experiment-id> --json                                        # Check experiment status
 famou-ctl experiment pause   <experiment-id> --json                                        # Pause running experiment
 famou-ctl experiment resume  <experiment-id> --json                                        # Resume paused experiment
+famou-ctl experiment update  <experiment-id> --config <path> --dry-run --json              # Preview prompt or budget changes
+famou-ctl experiment update  <experiment-id> --config <path> -y --json                     # Apply confirmed changes
+famou-ctl experiment continue <experiment-id> --iterations <N> -y --json                   # Continue a completed experiment
 famou-ctl experiment cancel  <experiment-id> --json                                        # Cancel experiment
 famou-ctl experiment delete  <experiment-id> --json                                        # Delete experiment
-famou-ctl experiment logs    <experiment-id> --follow/-f --output <file-path> --json       # View and save experiment logs
-famou-ctl experiment results <experiment-id> --output <file-path> --json                   # View experiment results
-famou-ctl experiment report  <experiment-id> --output <file-path> --json                   # Download experiment report in PDF format
+famou-ctl experiment logs    <experiment-id> --follow/-f --output <file-path> --json       # View and save experiment logs; default output: ./results
+famou-ctl experiment leaderboard <experiment-id> --json                                    # View leaderboard metadata without downloading code
+famou-ctl experiment results <experiment-id> --rank <N> --output <dir> --json              # Download one ranked solution; default output: ./results
+famou-ctl experiment results <experiment-id> --top <N> --output <dir> --json               # Download the top N solutions; default output: ./results
+famou-ctl experiment manifest <experiment-id> --json                                       # View the submitted file receipt
+famou-ctl experiment report  <experiment-id> --output <file-path> --json                   # Download experiment report in PDF format; default output: ./results
 ```
 
-**Handle output:**
-- Command succeeds: Parse JSON output using the status parsing rule above, then clearly display overall status, current stage, progress, creation time, and other key information.
-- If the response includes credit or remaining allowance fields, display them exactly as returned, including numbers, units, and expiration dates; do not modify, omit, or merge them.
-- For `cancel` command, the response includes `credits_used` (pre-deducted credits at submission) and `credits_refunded` (credits returned after cancellation). Display both clearly.
-- Command fails: Show the error message and prompt the user to verify the `experiment-id` or check their network connection.
+1. `leaderboard` is read-only; it returns ranking metadata and does not download code.
+2. For `results`, `--rank <N>` downloads the N-th ranked solution and `--top <N>` downloads the current top N; they are mutually exclusive. Default to rank 1 when neither is requested.
+3. `pause` requires `RUNNING`; `resume` requires `PAUSED`. Hybrid pause does not stop, and resume does not start, the local evaluator.
+4. `update` requires `RUNNING` or `PAUSED`. Run `--dry-run`, report `changes`, `ignored`, and cost, then use `-y` only after confirmation.
+5. `continue` requires `COMPLETED`; confirm before using `-y`, and keep additional iterations within `[10, 500]`. Use `resume` for a paused experiment.
+6. `manifest` is read-only and valid in every experiment state.
+7. Obtain explicit confirmation before `cancel` or `delete`.
+
+Handle every response according to **JSON Handling**. On failure, preserve the relevant error and ask the user to verify the request, experiment ID, authentication, permissions, or network as appropriate.
 
 ---
 
@@ -263,5 +245,6 @@ famou-ctl account info
 ```
 
 **Handle output:**
+
 - Command succeeds: Summarize the account identity and quota/credit fields shown by the command. Preserve exact numbers, units, and expiration dates if present.
 - Command fails: For authentication or configuration errors, ask the user to verify API settings using the configuration workflow above. For network or server errors, show the relevant error and suggest retrying later or checking network connectivity.

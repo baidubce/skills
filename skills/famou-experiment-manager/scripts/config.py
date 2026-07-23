@@ -6,15 +6,18 @@ import os
 import sys
 
 SETTINGS_PATH = os.path.expanduser("~/.famou-ctl/settings.json")
-DEFAULT_API_URL = "https://pro-service.famou.com"
+# DEFAULT_API_URL = "https://pro-service.famou.com"
+DEFAULT_API_URL = "http://100.66.59.54:8080"
 DEFAULT_USER_ID = "default"
 
 
 def mask(s: str) -> str:
+    """Mask a sensitive string while preserving short edge fragments."""
     return s[:3] + "***" + s[-3:] if len(s) > 6 else "***"
 
 
 def load_settings() -> dict:
+    """Load Famou settings from disk, returning an empty mapping on failure."""
     if not os.path.exists(SETTINGS_PATH):
         return {}
     try:
@@ -78,6 +81,7 @@ def cmd_write(api_key: str):
 
 
 def main():
+    """Parse command-line arguments and dispatch the requested config action."""
     parser = argparse.ArgumentParser(description="Famou configuration and project file management tool")
     parser.add_argument("command", choices=["read", "write"], help="Command: read or write")
     parser.add_argument("api_key", nargs="?", help="API key (required only for write command)")
