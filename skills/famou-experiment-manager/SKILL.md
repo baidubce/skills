@@ -88,6 +88,16 @@ Hybrid mode runs the evaluator locally while the cloud generates candidate code.
 
 Add `cloud_type: "hybrid"` to `config.yaml`, keep `evaluator` for the local test, and run from the experiment directory:
 
+**Optional evaluation timeouts:** The `timeouts` field may be omitted; when the user requests custom values, add or update it in `config.yaml` before testing:
+
+```yaml
+timeouts:
+  heartbeat_wait_hours: 72   # Max wait after evaluator disconnect; default 48h, max 168h
+  evaluation_wait_hours: 48  # Max duration of one evaluation; default 24h, max 48h
+```
+
+Omit `timeouts` to use the defaults. Values are in hours; reject `heartbeat_wait_hours > 168` or `evaluation_wait_hours > 48` and state the applicable limit. These values are validated and echoed by `famou-ctl test`, uploaded with `experiment create`, and cannot be changed after submission.
+
 ```bash
 famou-ctl test --config ./config.yaml --timeout <timeout_seconds> --json
 ```
