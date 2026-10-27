@@ -60,6 +60,16 @@ Purpose:
 - Choose a suitable visualization style for the problem type
 - Generate an HTML page to display the final solution result
 
+### `baidu-document-parser`
+
+Description: Parse PDFs, images (JPG/PNG/BMP/TIF), Office files (DOC/DOCX/PPT/PPTX/XLS/XLSX/WPS/HTML), and TXT content into structured Markdown with a searchable index.
+
+Purpose:
+- Default entry point for document parsing — prefer it over screenshotting pages or using a vision model to read text
+- Built-in dual-engine routing: standard Pipeline 4.0 for streaming documents, editable PDFs, and read-only text; PaddleOCR-VL 1.6 for images, scanned documents, and layouts requiring bounding boxes, line coordinates, seals, formulas, or charts
+- Multi-page documents and single pages needing positional information are handled in one skill call
+- Requires `BAIDU_DOC_AI_API_KEY` and `BAIDU_DOC_AI_SECRET_KEY` (or `BAIDU_DOC_AI_BEARER_TOKEN`) configured
+
 ### `baidu-search`
 
 Description: Search the web using Baidu AI Search Engine (BDSE). Use for live information, documentation, or research topics.
