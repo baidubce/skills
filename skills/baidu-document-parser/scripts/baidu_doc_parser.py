@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Baidu Unified Document Parser — 标准版 Pipeline 4.0 + PaddleOCR-VL 1.6 统一入口
+Baidu Unified Document Parser — 标准版 + PaddleOCR-VL 1.6 + Unlimited-OCR 统一入口
 
 子命令:
   parse   解析文档；按文件/场景选路（或 --engine 指定），结果写入本地缓存并生成索引
@@ -28,7 +28,8 @@ import requests
 OAUTH_URL = "https://aip.baidubce.com/oauth/2.0/token"
 
 # ---- 引擎定义 ---------------------------------------------------------------
-# standard = 文档解析标准版（Pipeline 4.0）；vlm = PaddleOCR-VL 1.6 多模态大模型
+# standard = 文档解析标准版；vlm = PaddleOCR-VL 1.6（PaddleOCR-VL-1.6-0.9B）多模态大模型；
+# unlimited = Unlimited-OCR（文心 Unlimited-OCR 2），超长文本跨页合并、标题层级更准，耗时更高
 ENGINES: Dict[str, Dict[str, Any]] = {
     "standard": {
         "submit": "https://aip.baidubce.com/rest/2.0/brain/online/v2/parser/task",
@@ -50,17 +51,36 @@ ENGINES: Dict[str, Dict[str, Any]] = {
         ),
         "str_params": (),
     },
+    "unlimited": {
+        "submit": "https://aip.baidubce.com/rest/2.0/brain/online/v2/unlimited-ocr-parser/task",
+        "query": "https://aip.baidubce.com/rest/2.0/brain/online/v2/unlimited-ocr-parser/task/query",
+        # 跨页段落/表格自动合并、标题层级为引擎内置能力，无需开关；
+        # 表格在 Markdown 中以 HTML <table> 内嵌（实测：跨列 colspan、跨行空单元格占位），不返回细粒度版面坐标
+        "bool_params": (
+            "angle_adjust", "erase_seal", "erase_watermark", "unwarp",
+            "need_pdffile_data", "need_pdffile_vis_data",
+        ),
+        "str_params": ("angle_mode",),
+    },
 }
 IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"})
-# 标准版支持格式（版式 + 流式）
+# 标准版支持格式（版式 + 流式 + 图片；2026-11 官网口径：流式含 ods/tsv/rtf/odt/odp，图片含 webp/gif/ico/svg）
 STANDARD_EXTS = frozenset({
     ".pdf", ".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".ofd", ".ppt", ".pptx",
     ".doc", ".docx", ".txt", ".xls", ".xlsx", ".wps", ".html", ".mhtml",
+    ".ods", ".tsv", ".rtf", ".odt", ".odp", ".webp", ".gif", ".ico", ".svg",
 })
-# VL 支持格式（注意：不含 xls/xlsx）
+# VL 支持格式（注意：不含 xls/xlsx；ods/tsv/rtf/odt/odp 经实测云端不支持——
+# 官网格式表与实际 API 不一致，该类流式格式请走标准版；图片类 webp/gif/ico/svg 实测可用）
 VLM_EXTS = frozenset({
-    ".pdf", ".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".ofd",
-    ".doc", ".docx", ".txt", ".wps", ".ppt", ".pptx",
+    ".pdf", ".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".ofd", ".ppt", ".pptx",
+    ".doc", ".docx", ".txt", ".wps", ".webp", ".gif", ".ico", ".svg",
+})
+# Unlimited-OCR 支持格式（注意：不含 xls/xlsx，Excel 走标准版）
+UNLIMITED_EXTS = frozenset({
+    ".pdf", ".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".ofd", ".ppt", ".pptx",
+    ".doc", ".docx", ".txt", ".wps", ".ods", ".tsv", ".rtf", ".odt", ".odp",
+    ".webp", ".gif", ".ico", ".svg",
 })
 OFFICE_FLOW_EXTS = frozenset({
     ".doc", ".docx", ".txt", ".xls", ".xlsx", ".wps", ".ppt", ".pptx", ".html", ".mhtml",
@@ -78,8 +98,9 @@ INDEX_SCHEMA_VERSION = "2"
 # ---- 结构化错误：失败必须带 code / message / user_prompt ----------------------
 # 约定：禁止只回「解析失败」，禁止 Agent 用散文猜，禁止静默换解析器/换引擎。
 ERROR_PROMPTS: Dict[str, str] = {
-    "AUTH_FORBIDDEN": "当前账号没有文档解析接口的调用权限，多为创建应用时未勾选相关文字识别接口。"
-                      "请登录百度智能云控制台，找到对应应用→编辑→勾选文字识别相关接口后重新调用，"
+    "AUTH_FORBIDDEN": "当前账号没有文档解析接口的调用权限，多为 API Key 权限范围不足或应用未勾选接口。"
+                      "请参考创建 API Key 指引 https://cloud.baidu.com/doc/OCR/s/mmmk8dayn 创建/检查 API Key 并配置权限范围"
+                      "（勾选「AI 开放能力」）；老 AK/SK 应用可登录控制台编辑应用、勾选文字识别相关接口，"
                       "也可用权限额度诊断工具自助诊断：https://console.bce.baidu.com/tools/#/aiInterfacePermissions"
                       "（错误码说明 https://cloud.baidu.com/doc/OCR/s/wlqc0cfdq）。",
     "CREDENTIALS_REQUIRED": "没有可用的 API Key 或 Key 无效。请到 "
@@ -92,10 +113,10 @@ ERROR_PROMPTS: Dict[str, str] = {
     "PAGE_RANGE_INVALID": "页码超出范围。请改成实际页数内的区间。",
     "NOT_CACHED": "这份文件还没解析。请先对它跑一次 parse，再检索或取结果。",
     "QUOTA_EXCEEDED": "账号额度用完了。请到控制台开通或充值后再说一声："
-                      "https://console.bce.baidu.com/ai/#/ai/ocr/overview/index",
+                      "https://console.bce.baidu.com/ai-engine/ocr/overview/index",
     "RATE_LIMIT": "当前请求较多，我过几秒自动再试，不用重新上传。",
     "TIMEOUT": "这份文件比较大，还在处理。请稍等；或告诉我先看哪几页。",
-    "BACKEND_UNAVAILABLE": "云端解析暂时没成功。可以稍后重试，或换一种解析方式（办公件走标准版，扫描件走 VL）。",
+    "BACKEND_UNAVAILABLE": "云端解析暂时没成功。可以稍后重试，或换一种解析方式（办公件走标准版，扫描件走 VL，超长文本走 Unlimited-OCR）。",
     "TASK_FAILED": "打不开这份文件（有时是加密或损坏）。请确认能正常打开，或导出一份未加密 PDF 再试。",
 }
 
@@ -154,11 +175,12 @@ def decide_engine(ext: str, explicit: Optional[str]) -> str:
     """选路：用户点名以用户为准；否则按文件类型粗选。
 
     图片 → VL；Office/流式 → 标准；PDF/OFD → 默认标准（可编辑件）。
-    扫描 PDF、需版面框/行坐标/印章等场景由 SKILL.md 指引 Agent 显式传 --engine vlm。
+    扫描 PDF、需版面框/行坐标/印章等场景由 SKILL.md 指引 Agent 显式传 --engine vlm；
+    超长文本/跨页合并/标题层级场景显式传 --engine unlimited（耗时更高）。
     """
     if explicit and explicit != "auto":
         if explicit not in ENGINES:
-            raise ValueError(f"未知引擎 '{explicit}'，可选 standard / vlm / auto")
+            raise ValueError(f"未知引擎 '{explicit}'，可选 standard / vlm / unlimited / auto")
         return explicit
     if ext in IMAGE_EXTS:
         return "vlm"
@@ -166,11 +188,11 @@ def decide_engine(ext: str, explicit: Optional[str]) -> str:
 
 
 def validate_format(ext: str, engine: str) -> None:
-    allowed = STANDARD_EXTS if engine == "standard" else VLM_EXTS
+    allowed = {"standard": STANDARD_EXTS, "vlm": VLM_EXTS, "unlimited": UNLIMITED_EXTS}[engine]
     if ext not in allowed:
-        if engine == "vlm" and ext in {".xls", ".xlsx"}:
+        if engine != "standard" and ext in {".xls", ".xlsx"}:
             raise SkillError("UNSUPPORTED_TYPE",
-                             f"PaddleOCR-VL 不支持 Excel（{ext}），Excel 请用 --engine standard",
+                             f"{engine} 不支持 Excel（{ext}），Excel 请用 --engine standard",
                              {"ext": ext, "engine": engine})
         raise SkillError("UNSUPPORTED_TYPE",
                          f"引擎 {engine} 不支持格式 '{ext}'，支持: {', '.join(sorted(allowed))}",
@@ -693,8 +715,9 @@ def add_parse_args(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--file_path", help="本地文件路径（带后缀）")
     sp.add_argument("--file_url", help="公网文件 URL（带后缀）")
     sp.add_argument("--file_name", help="文件名（含后缀）；缺省时从路径/URL 推断")
-    sp.add_argument("--engine", choices=["auto", "standard", "vlm"], default="auto",
-                    help="选路：auto 按文件类型；standard 标准版 4.0；vlm PaddleOCR-VL 1.6")
+    sp.add_argument("--engine", choices=["auto", "standard", "vlm", "unlimited"], default="auto",
+                    help="选路：auto 按文件类型；standard 标准版；vlm PaddleOCR-VL 1.6；"
+                         "unlimited Unlimited-OCR（超长文本/跨页合并，耗时更高）")
     sp.add_argument("--page_range", help="页范围，如 '1-10' 或 '1-3,7'（1 基）")
     sp.add_argument("-o", "--output", dest="output", help="将 Markdown 正文写入该文件")
     sp.add_argument("--emit", choices=["index", "markdown", "both"], default="index",
@@ -704,24 +727,30 @@ def add_parse_args(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--chunk", action="store_true", help="开启 RAG 文档分块")
     # 通用/标准版参数
     sp.add_argument("--recognize_formula", type=_str_to_bool, help="[标准版] 公式识别")
-    sp.add_argument("--analysis_chart", type=_str_to_bool, help="[通用] 统计图表解析")
-    sp.add_argument("--angle_adjust", type=_str_to_bool, help="[通用] 角度矫正")
+    sp.add_argument("--analysis_chart", type=_str_to_bool, help="[标准版/VL] 统计图表解析")
     sp.add_argument("--parse_image_layout", type=_str_to_bool, help="[标准版] 返回图片位置")
     sp.add_argument("--html_table_format", type=_str_to_bool, help="[标准版] 表格转 HTML")
     sp.add_argument("--language_type", help="[标准版] 语种，默认 CHN_ENG")
     sp.add_argument("--switch_digital_width", help="[标准版] 数字全半角 auto/half/full")
     sp.add_argument("--version", help="[标准版] 接口版本")
+    # VL / Unlimited 共用参数（画面预处理）
+    sp.add_argument("--angle_adjust", type=_str_to_bool, help="[VL/Unlimited] 角度矫正（Unlimited 默认 True）")
+    sp.add_argument("--angle_mode", choices=["direction", "arbitrary"],
+                    help="[Unlimited] 角度矫正模式：direction 四方向(默认)/arbitrary 任意方向")
+    sp.add_argument("--erase_seal", type=_str_to_bool, help="[VL/Unlimited] 擦章（会改画面，核章时勿开）")
+    sp.add_argument("--erase_watermark", type=_str_to_bool, help="[VL/Unlimited] 擦水印")
+    sp.add_argument("--unwarp", type=_str_to_bool, help="[VL/Unlimited] 弯折矫正")
+    sp.add_argument("--need_pdffile_data", type=_str_to_bool, help="[Unlimited] 返回整份 PDF 下载链接")
+    sp.add_argument("--need_pdffile_vis_data", type=_str_to_bool,
+                    help="[Unlimited] 预处理后 PDF 下载链接（角度矫正/擦章等开启后可用）")
     # VL 参数
     sp.add_argument("--merge_tables", type=_str_to_bool, help="[VL] 跨页表格合并")
     sp.add_argument("--relevel_titles", type=_str_to_bool, help="[VL] 标题分级")
     sp.add_argument("--recognize_seal", type=_str_to_bool, help="[VL] 识别印章")
     sp.add_argument("--return_span_boxes", type=_str_to_bool, help="[VL] 返回行坐标")
-    sp.add_argument("--erase_seal", type=_str_to_bool, help="[VL] 擦章（会改画面，核章时勿开）")
-    sp.add_argument("--erase_watermark", type=_str_to_bool, help="[VL] 擦水印")
-    sp.add_argument("--unwarp", type=_str_to_bool, help="[VL] 弯折矫正")
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="百度文档解析统一入口（标准版 4.0 + PaddleOCR-VL 1.6），自动选路 + 索引 + 缓存复用")
+        description="百度文档解析统一入口（标准版 + PaddleOCR-VL 1.6 + Unlimited-OCR），自动选路 + 索引 + 缓存复用")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sp_parse = sub.add_parser("parse", help="解析文档并生成索引（结果写入本地缓存）")

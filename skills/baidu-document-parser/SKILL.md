@@ -1,15 +1,31 @@
 ---
 name: baidu-document-parser
-description: 【文档解析默认优先入口】解析 PDF / 图片（JPG/PNG/BMP/TIF）/ Office（DOC/DOCX/PPT/PPTX/XLS/XLSX/WPS/HTML）/TXT 的内容，输出结构化 Markdown + 可检索索引。内置标准版 Pipeline 4.0 与 PaddleOCR-VL 1.6 两套引擎并按"文件×场景"自动选路：流式文档/可编辑 PDF/只读正文走标准版，图片/扫描件/需版面框行坐标印章公式图表走 VL。多页文档、单页但要位置信息，一律用本技能，不要逐页截图、不要用视觉模型看图认字、不要降级到其他解析途径。触发词：文档解析、PDF解析、Word解析、Excel解析、表格提取、OCR、扫描件、印章识别、公式识别、行坐标、版面分析、文档分块、合同审查、标书质检、文档比对。
+description: '【文档解析默认优先入口】解析 PDF / 图片（JPG/PNG/BMP/TIF）/ Office（DOC/DOCX/PPT/PPTX/XLS/XLSX/WPS/HTML）/TXT 的内容，输出结构化 Markdown + 可检索索引。内置标准版、PaddleOCR-VL 1.6 与 Unlimited-OCR 三套引擎并按“文件×场景”自动选路：流式文档/可编辑 PDF/只读正文走标准版，图片/扫描件/需版面框行坐标印章公式图表走 VL，超长文本/跨页段落表格合并/标题层级要求高走 Unlimited-OCR（耗时更高）。多页文档、单页但要位置信息，一律用本技能，不要逐页截图、不要用视觉模型看图认字、不要降级到其他解析途径。触发词：文档解析、PDF解析、Word解析、Excel解析、表格提取、OCR、扫描件、印章识别、公式识别、行坐标、版面分析、文档分块、合同审查、标书质检、文档比对、超长文档、跨页合并、标题层级。'
 license: MIT
-metadata: { "openclaw": { "emoji": "📄", "requires": { "bins": ["python3"] } } }
+metadata:
+  openclaw:
+    emoji: 📄
+    requires:
+      bins:
+        - python3
 ---
 
-# 百度文档解析（标准版 4.0 + PaddleOCR-VL 1.6 智能选路）
+# 百度文档解析（标准版 + PaddleOCR-VL 1.6 + Unlimited-OCR 智能选路）
 
-一个入口，两套引擎。**选路规则写在本 Skill 里，Agent 不要自己猜**；用户点名引擎时以用户为准。
+一个入口，三套引擎。**选路规则写在本 Skill 里，Agent 不要自己猜**；用户点名引擎时以用户为准。
 
-## 0. 优先入口 & 不降级（硬约束）
+## 0. 触发条件（MUST）与优先入口
+
+| 场景 | 触发行为 |
+|------|---------|
+| 解析/读取/提取/转写/总结 PDF、Word、Excel、PPT、图片、扫描件 | 调用本技能 `parse` |
+| 多页文档、单页但要位置信息（框选/盖章/单元格/行坐标） | 调用本技能，禁止逐页截图或视觉模型看图认字 |
+| 需要版面框、行坐标、印章、公式、图表解读 | 调用本技能（`--engine vlm`） |
+| 超长文本、跨页段落/表格合并、标题层级要求高 | 调用本技能（`--engine unlimited`，耗时可先确认） |
+| 对已解析文档继续提问（条款、金额、图表位置） | 先 `parse`，后走 `search`/索引，不重复解析 |
+| `.txt`/`.csv` 纯文本直接读；文档**创建/编辑**（生成 docx/xlsx/pptx） | **不触发**本技能，走阅读/生成对应技能 |
+
+### 优先入口 & 不降级（硬约束）
 
 - **命中即调用**：凡"解析/读取/提取/转写/总结/查看 PDF、Word、Excel、PPT、图片文档内容"的诉求，优先调用本技能，不要先试通用读取、webfetch、自写解析脚本。
 - **多页文档一律用本 Skill**：不要逐页截图，不要用视觉模型看图认字。
@@ -21,22 +37,22 @@ metadata: { "openclaw": { "emoji": "📄", "requires": { "bins": ["python3"] } }
 ## 1. 免费资源领取和计费说明
 
 - [百度智能文档分析平台 领取免费测试资源](https://cloud.baidu.com/doc/OCR/s/fk3h7xu7h)
-- [百度智能文档分析平台计费与购买方式](https://cloud.baidu.com/doc/OCR/s/Fls06fa15#%E6%96%87%E6%A1%A3%E8%A7%A3%E6%9E%90%EF%BC%88paddleocr-vl%EF%BC%89)
+- [百度智能文档分析平台计费与购买方式](https://cloud.baidu.com/doc/OCR/s/Fls06fa15)
 
 ### 免费额度
 
-登录[文字识别控制台](https://console.bce.baidu.com/ai/)自动领取（两套引擎额度独立）：
+登录[文字识别控制台](https://console.bce.baidu.com/ai-engine/ocr/overview/index)自动领取（三套引擎额度独立）：
 
-| 用户类型 | 标准版（Pipeline） | PaddleOCR-VL |
-|---------|-------------------|--------------|
-| 个人实名认证用户 | 200 页 | 200 页 |
-| 企业实名认证用户 | 200 页 | 1000 页 |
+| 用户类型 | 标准版 | PaddleOCR-VL | Unlimited-OCR |
+|---------|-------------------|--------------|---------------|
+| 个人实名认证用户 | 200 页 | 200 页 | 2000 页/月 |
+| 企业实名认证用户 | 200 页 | 1000 页 | 2000 页/月 |
 
-### PaddleOCR-VL 计费
+### 计费（免费额度用尽后）
 
-- **新人优惠**：限时活动价 9 元/千页，面向新用户。
-- **按量后付费**：不限月调用量，原价 0.09 元/页、现价 0.05 元/页；仅成功调用计费，**调用失败不计费**。
-- **预付费资源包**（有效期 1 年，到期未抵扣作废；购买后 7 天内未产生调用可自助退订）：
+三套引擎都只对**成功调用**计费，调用失败不计费。标准版与 VL 另有 [新人专享 9元/千页 活动价](https://cloud.baidu.com/campaign/event/ai/index.html?campaignAnchorTab=new-ocr)。
+
+**标准版 / PaddleOCR-VL**（资源包两套引擎通用）：
 
 | 规格（页） | 原价（元） | 现价（元） |
 |---:|---:|---:|
@@ -50,16 +66,22 @@ metadata: { "openclaw": { "emoji": "📄", "requires": { "bins": ["python3"] } }
 | 2,000,000 | — | 62,000 |
 | 5,000,000 | 210,000 | 150,000 |
 
+按量后付费：标准版 / VL 均 **~~0.09~~ 0.05 元/页**（不限月调用量）。
+
+**Unlimited-OCR**（无资源包，仅按量）：
+
+- 按量后付费：**~~0.05~~ 0.02 元/页**（限时折扣，不限月调用量）。
+
 ### 购买入口
 
-- 购买资源包 / 开通后付费：均在[百度智能云控制台](https://console.bce.baidu.com/ai/)文字识别产品页进行。
+- 购买资源包 / 开通后付费：均在[文字识别控制台](https://console.bce.baidu.com/ai-engine/ocr/overview/index)进行。
 - 退订：资源包购买后 7 天内未产生调用，可前往"退订管理页面"自助退订。
 
 ## 2. 选路：按文件 × 场景选引擎
 
-用户点名引擎 → 以用户为准（`--engine standard|vlm`）。否则按下表，`--engine auto` 会按文件类型粗选（图片→VL，其余→标准），**需要 VL 的场景必须显式传 `--engine vlm`**。
+用户点名引擎 → 以用户为准（`--engine standard|vlm|unlimited`）。否则按下表，`--engine auto` 会按文件类型粗选（图片→VL，其余→标准），**需要 VL / Unlimited 的场景必须显式传 `--engine vlm` / `--engine unlimited`**。
 
-### 走标准版（`--engine standard`，Pipeline 4.0）
+### 走标准版（`--engine standard`，官方接口名"文档解析"）
 
 - 流式文档：doc / docx / wps / txt / xls / xlsx / ppt / pptx 等。
 - 可编辑、可选中复制的 PDF，且这轮**不需要**框位置、行坐标、印章、单元格点选。
@@ -68,13 +90,21 @@ metadata: { "openclaw": { "emoji": "📄", "requires": { "bins": ["python3"] } }
 - 优势：格式覆盖全、标题和表结构稳、长 PDF 页数上限更高（约 2000 页，以官方为准）。
 - **不要把 Word 丢给 VL。**
 
-### 走 PaddleOCR-VL（`--engine vlm`，1.6）
+### 走 PaddleOCR-VL（`--engine vlm`，PaddleOCR-VL-1.6-0.9B）
 
 - 图片：jpg / png / bmp / tif / 拍照件 / 截图。
 - 扫描 PDF、不能选中文字的 PDF。
 - 教育（公式多）、论文、报刊杂志、复杂图文混排。
 - 需要版面框、行坐标、单元格、印章、图表解读。
 - 数字 Word / 可复制 PDF 且只要正文时，**仍走标准版**。
+
+### 走 Unlimited-OCR（`--engine unlimited`，文心 Unlimited-OCR 2）
+
+- **超长文本**：跨页段落/表格自动合并（一次推理融合跨页上下文），不需要 `merge_tables` 等开关。
+- **标题层级更准**：章节层级精准解析，适合报告、论文、书籍、长标书的结构还原。
+- 输出以 Markdown 为主，**复杂表格以 HTML `<table>` 内嵌**（实测：跨列用 `colspan`、跨行以空单元格占位而非 `rowspan`；可直接渲染）；不返回细粒度版面框/行坐标。
+- **耗时更高**（大模型解码，明显慢于前两者）——用户没说"要结构/跨页"时不要主动开。
+- 限制：PDF ≤ 500 页；图片最长边 ≤ 8192px；**不支持 Excel（xls/xlsx）**，Excel 走标准版。
 
 ## 3. 场景 × 参数
 
@@ -96,10 +126,12 @@ metadata: { "openclaw": { "emoji": "📄", "requires": { "bins": ["python3"] } }
 | 多语种（日韩拉丁等） | VL | 模型默认识别即可 | 标准版硬填错语种 |
 | Excel 多 Sheet | 标准版 | 按 sheet 名当目录 | 当成长 PDF |
 | 超长数字标书、只要按章抽 | 标准版 | 目录 + `--page_range`，先不要全书 | 整本丢给 VL |
+| 超长文本、跨页段落/表格合并、标题层级要求高 | Unlimited | 默认即可（内置合并/分级） | 要行坐标/版面框（Unlimited 不返回，改 VL） |
+| 长报告、论文、书籍的"连续阅读"式结构还原 | Unlimited | 默认即可 | 先问耗时可接受（明显更慢） |
 
-> VL 默认已开启公式识别、图片解析、语种自动识别，无需显式参数。标准版需按需打开 `--recognize_formula` / `--language_type` 等。
+> VL 默认已开启公式识别、图片解析、语种自动识别，无需显式参数；Unlimited 同样默认开启且跨页合并/标题分级内置，另提供 `--erase_seal` / `--erase_watermark` / `--unwarp` / `--angle_mode` 画面处理参数。标准版需按需打开 `--recognize_formula` / `--language_type` 等。
 
-## 4. 用法（CLI）
+## 4. 使用方法（CLI）
 
 ```bash
 # 解析（自动选路）→ 默认输出"索引"(地图)，正文落在缓存
@@ -112,7 +144,10 @@ python3 scripts/baidu_doc_parser.py parse --file_path /abs/contract.pdf \
 # 超长标书只先抽前 20 页目录
 python3 scripts/baidu_doc_parser.py parse --file_path /abs/bid.pdf --engine standard --page_range 1-20
 
-# 公网 URL（标准版/VL 均可直接收 URL，无需本地文件）
+# 超长文本：跨页段落/表格自动合并、标题层级更准（耗时更高），表格以 HTML <table> 内嵌
+python3 scripts/baidu_doc_parser.py parse --file_path /abs/long-report.pdf --engine unlimited
+
+# 公网 URL（标准版/VL/Unlimited 均可直接收 URL，无需本地文件）
 python3 scripts/baidu_doc_parser.py parse --file_url https://x/y.pdf --file_name y.pdf
 
 # 从缓存里按关键词回到 页 + 门牌
@@ -126,18 +161,24 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 
 ## 5. 支持格式与限制
 
-| | 标准版（Pipeline 4.0） | PaddleOCR-VL 1.6 |
-|------|------|------|
-| 版式文档 | pdf, jpg, jpeg, png, bmp, tif, tiff, ofd, ppt, pptx | pdf, jpg, jpeg, png, bmp, tif, tiff, ofd |
-| 流式文档 | doc, docx, txt, xls, xlsx, wps, html, mhtml | doc, docx, txt, wps, ppt, pptx |
-| Excel | 支持 | **不支持**（走标准版） |
-| 语言 | 20+（需指定 `language_type`） | 100+（自动识别） |
-| 公式/图片 | 需手动开参数 | 默认开启 |
-| 行坐标/印章/合表 | 不支持行坐标 | `--return_span_boxes` / `--recognize_seal` / `--merge_tables` |
-| PDF 页数 | ≤ 2000 页 | ≤ 500 页 |
-| 直传大小 | file_data ≤ 50M，更大走 file_url | 同左 |
+| | 标准版 | PaddleOCR-VL 1.6 | Unlimited-OCR |
+|------|------|------|------|
+| 版式文档 | pdf, ofd, ppt, pptx | pdf, ofd, ppt, pptx | pdf, ofd, ppt, pptx |
+| 流式文档 | doc, docx, txt, xls, xlsx, wps, html, mhtml, ods, tsv, rtf, odt, odp | doc, docx, txt, wps | doc, docx, txt, wps, ppt, pptx, ods, tsv, rtf, odt, odp |
+| 图片 | jpg, jpeg, png, bmp, tif, tiff, webp, gif, ico, svg | jpg, jpeg, png, bmp, tif, tiff, webp, gif, ico, svg | jpg, jpeg, png, bmp, tif, tiff, webp, gif, ico, svg |
+| Excel | 支持 | **不支持**（走标准版） | **不支持**（走标准版） |
+| 语言 | 20+（需指定 `language_type`） | 100+（自动识别） | 多语种（自动识别） |
+| 公式/图片 | 需手动开参数 | 默认开启 | 默认开启 |
+| 跨页段落/表格合并 | 不支持 | `--merge_tables` | **默认自动合并** |
+| 行坐标/印章 | 不支持行坐标 | `--return_span_boxes` / `--recognize_seal` | 不返回细粒度版面（核章/框选走 VL） |
+| 标题层级 | 依 title sub_type | `--relevel_titles` | **默认精准分级** |
+| PDF 页数 | ≤ 2000 页 | ≤ 500 页 | ≤ 500 页 |
+| 直传大小 | 图片 ≤10M、其余 ≤50M | 同左 | 同左 |
+| file_url 上限 | PDF ≤300M、非 PDF ≤50M（≤2000 页） | PDF ≤100M（≤500 页） | PDF ≤100M（≤500 页） |
 
-`file_data` 与 `file_url` 二选一；本脚本本地文件自动转 base64。超 50M 请用 `--file_url`。
+图片最长边 ≤ 8192px（三套引擎一致）。`file_data` 与 `file_url` 二选一；本脚本本地文件自动转 base64。
+
+> 实测校准（2026-11）：官方 VL 文档页的格式清单与实际 API 不一致——**ods / tsv / rtf / odt / odp 实测 VL 后端不支持**（提交成功但任务失败），脚本已在本地拦截并提示改用标准版；webp / gif / ico / svg 图片类实测 VL 可用。标准版对 ods / rtf / webp 实测可用。
 
 ## 6. 索引：给 Agent 的地图
 
@@ -152,7 +193,7 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 | 检索 search | 正文片段 → 页 + 门牌（用 `search` 子命令查） | "质保期在哪" |
 | 门牌 door_id | `引擎#内容哈希:p页码:块`（表可到格） | 引用原文、工作台高亮 |
 
-**约定**：按文件内容认文件（哈希），不按文件名；搜到必须能回到第几页哪一块；只解析了 1–10 页就不能假装第 15 页也能搜；标准版和 VL 两份结果并存时门牌带上引擎前缀；假标题、页眉页脚页码不进目录；短文（≤5 页）可带正文，长文只返回目录 + 要素摘要。
+**约定**：按文件内容认文件（哈希），不按文件名；搜到必须能回到第几页哪一块；只解析了 1–10 页就不能假装第 15 页也能搜；多引擎结果并存时门牌带上引擎前缀；假标题、页眉页脚页码不进目录；短文（≤5 页）可带正文，长文只返回目录 + 要素摘要。Unlimited-OCR 的表格在 Markdown 正文里是 HTML `<table>`（跨列用 `colspan`、跨行以空单元格占位），索引"要素"仍按解析 JSON 里的表格对象出。
 
 ### 下游场景：目录之外多给什么
 
@@ -174,7 +215,7 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 
 缓存默认在 `~/.cache/baidu-doc-parser/<cache_key>/`，可用环境变量 `BAIDU_DOC_PARSER_CACHE` 覆盖。
 
-## 8. 错误码：不但说错了，还要说下一步
+## 8. 错误处理：不但说错了，还要说下一步
 
 **失败一律结构化**，`parse`/`index`/`search` 失败时 stdout 返回 JSON（退出码 1）：
 
@@ -186,13 +227,13 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 
 - **禁止只回一句「解析失败」**；必须带 `code` + `message` + `user_prompt`。
 - **禁止 Agent 用散文猜**错因，按 `code` 分支。
-- **禁止静默换解析器**，也**禁止自动在标准版↔VL 之间切换**；换引擎前先问用户。
+- **禁止静默换解析器**，也**禁止自动在标准版↔VL↔Unlimited 之间切换**；换引擎前先问用户。
 - 鉴权失败按 `code` 处理，**不要换工具"先做起来"**。
 - `user_prompt` 原样展示给用户（里面已含链接或具体动作）。
 
 | code | 什么情况 | Agent 怎么做 | 给用户看（user_prompt 摘要） |
 |------|---------|-------------|---------------------------|
-| AUTH_FORBIDDEN | 已登录但无接口权限（多为建应用时未勾选接口） | 停 | 登录控制台→编辑应用→勾选文字识别相关接口后重试；也可用权限额度诊断工具自助诊断 https://console.bce.baidu.com/tools/#/aiInterfacePermissions |
+| AUTH_FORBIDDEN | 已登录但无接口权限（多为 API Key 权限不足或建应用时未勾选接口） | 停 | 参考[创建 API Key 指引](https://cloud.baidu.com/doc/OCR/s/mmmk8dayn)创建/检查 API Key 并配置「AI 开放能力」权限；或登录控制台→编辑应用→勾选文字识别相关接口；诊断工具 https://console.bce.baidu.com/tools/#/aiInterfacePermissions |
 | CREDENTIALS_REQUIRED | 没 Key 或 Key 无效 | 停，原样发开通说明 | 跳转 https://console.bce.baidu.com/iam/#/iam/apikey/list 建 API Key（勾「AI 开放能力」），把整串发回；无效则重建，别换别的方式读 PDF |
 | FILE_NOT_FOUND | 路径不存在 | 停，可请用户重选文件 | 找不到文件，确认路径或重新拖进对话 |
 | UNSUPPORTED_TYPE | 格式不支持 | 停 | 支持 PDF/Word/PPT/Excel/txt/常见图片，换一种或另存为 PDF |
@@ -202,7 +243,7 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 | QUOTA_EXCEEDED | 额度不够 | 停 | 额度用完，去控制台开通/充值后再说一声 |
 | RATE_LIMIT | 调用太频繁 | 等几秒，用同一任务重试，**不要当新文件再提交** | 请求较多，过几秒自动再试，不用重传 |
 | TIMEOUT | 等待超时 | 用 `--resume_task <details.task_id>` 再查；仍失败再请用户缩页范围 | 文件较大还在处理，请稍等或先看哪几页 |
-| BACKEND_UNAVAILABLE | 云端失败 | **不自动换引擎**，可问用户要不要换一条（标准版↔VL）再 parse | 云端暂未成功，可稍后重试或换解析方式 |
+| BACKEND_UNAVAILABLE | 云端失败 | **不自动换引擎**，可问用户要不要换一条（标准版↔VL↔Unlimited）再 parse | 云端暂未成功，可稍后重试或换解析方式 |
 | TASK_FAILED | 任务失败（加密/坏文件等） | 看 `details.task_error` | 打不开（可能加密/损坏），导出未加密 PDF 再试 |
 | LOW_TEXT_QUALITY | **警告，不是失败** | 不自动换引擎，把建议转告用户 | 这页文字很少或像扫描件，结果不对就说一声改用 VL |
 
@@ -213,7 +254,7 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 ## 9. 脚本与参考文档
 
 - `scripts/baidu_doc_parser.py`：统一入口（parse / index / search 三个子命令）。
-- `references/parameters.md`：两套引擎完整参数与返回结构。
+- `references/parameters.md`：三套引擎完整参数与返回结构。
 - `references/error_codes.md`：云端 error_code → 本技能 code 的完整对照。
 - `references/apikey-fetch.md`：API Key 配置指南。
 - `references/routing.md`：选路与场景参数速查（本文件第 2、3 节的详表）。
@@ -222,6 +263,7 @@ python3 scripts/baidu_doc_parser.py index --cache <cache_key 或缓存目录>
 
 - 标准版 API：https://ai.baidu.com/ai-doc/OCR/llxst5nn0
 - PaddleOCR-VL API：https://cloud.baidu.com/doc/OCR/s/3mi73at9o
+- Unlimited-OCR API：https://cloud.baidu.com/doc/OCR/s/fmr1p39gb
 - 计费与购买：https://cloud.baidu.com/doc/OCR/s/Fls06fa15
 
 
