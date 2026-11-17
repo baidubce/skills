@@ -66,7 +66,7 @@ Description: Parse PDFs, images (JPG/PNG/BMP/TIF), Office files (DOC/DOCX/PPT/PP
 
 Purpose:
 - Default entry point for document parsing — prefer it over screenshotting pages or using a vision model to read text
-- Built-in dual-engine routing: standard Pipeline 4.0 for streaming documents, editable PDFs, and read-only text; PaddleOCR-VL 1.6 for images, scanned documents, and layouts requiring bounding boxes, line coordinates, seals, formulas, or charts
+- Built-in three-engine routing: standard (Baidu Doc Analysis) for streaming documents, editable PDFs, and read-only text; PaddleOCR-VL 1.6 for images, scanned documents, and layouts requiring bounding boxes, line coordinates, seals, formulas, or charts; Unlimited-OCR for ultra-long documents with automatic cross-page paragraph/table merging and precise title hierarchy (higher latency)
 - Multi-page documents and single pages needing positional information are handled in one skill call
 - Requires `BAIDU_DOC_AI_API_KEY` and `BAIDU_DOC_AI_SECRET_KEY` (or `BAIDU_DOC_AI_BEARER_TOKEN`) configured
 

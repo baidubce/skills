@@ -19,10 +19,10 @@
 
 访问 **https://cloud.baidu.com/doc/OCR/s/fk3h7xu7h**
 
-| 用户类型 | 标准版免费额度 | PaddleOCR-VL 免费额度 |
-|---------|---------------|----------------------|
-| 个人实名认证 | 200 页 | 200 页 |
-| 企业实名认证 | 200 页 | 1000 页 |
+| 用户类型 | 标准版免费额度 | PaddleOCR-VL 免费额度 | Unlimited-OCR 免费额度 |
+|---------|---------------|----------------------|----------------------|
+| 个人实名认证 | 200 页 | 200 页 | 2000 页/月 |
+| 企业实名认证 | 200 页 | 1000 页 | 2000 页/月 |
 
 ## 3. 配置环境变量
 
@@ -84,4 +84,4 @@ python3 scripts/baidu_doc_parser.py parse --file_url "https://example.com/test.p
 
 - [获取 AK/SK](https://ai.baidu.com/ai-doc/REFERENCE/Ck3dwjhhu#1-获取aksk)
 - [领取免费资源](https://cloud.baidu.com/doc/OCR/s/fk3h7xu7h)
-- [百度云控制台](https://console.bce.baidu.com/ai/)
+- [百度云控制台（文字识别）](https://console.bce.baidu.com/ai-engine/ocr/overview/index)

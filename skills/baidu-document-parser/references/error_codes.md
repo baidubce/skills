@@ -1,6 +1,6 @@
-# 百度文档解析 API 错误码参考（标准版 + PaddleOCR-VL 通用）
+# 百度文档解析 API 错误码参考（标准版 + PaddleOCR-VL + Unlimited-OCR 通用）
 
-两套引擎（`/v2/parser` 标准版、`/v2/paddle-vl-parser` VL）共用同一套 OCR 错误码。
+三套引擎（`/v2/parser` 标准版、`/v2/paddle-vl-parser` VL、`/v2/unlimited-ocr-parser` Unlimited）共用同一套 OCR 错误码。
 
 ## 认证相关错误
 
@@ -10,7 +10,7 @@
 | 2 | Service temporarily unavailable | 服务暂不可用 | 重试请求 |
 | 3 | Unsupported openapi method | API 接口不存在 | 检查 URL 是否正确 |
 | 4 | Open api request limit reached | 集群超限额 | 重试请求 |
-| 6 | No permission to access data | 无接口调用权限（应用未勾选接口） | 登录控制台编辑对应应用、勾选相关文字识别接口后重试；或用[权限额度诊断工具](https://console.bce.baidu.com/tools/#/aiInterfacePermissions)自助诊断 |
+| 6 | No permission to access data | 无接口调用权限（API Key 权限范围不足/应用未勾选接口） | 参考[创建 API Key 指引](https://cloud.baidu.com/doc/OCR/s/mmmk8dayn)创建/检查 API Key 并配置「AI 开放能力」权限范围；或登录控制台编辑对应应用、勾选相关文字识别接口后重试；或用[权限额度诊断工具](https://console.bce.baidu.com/tools/#/aiInterfacePermissions)自助诊断 |
 | 14 | IAM Certification failed | IAM 认证失败 | 检查签名或改用 AK/SK |
 | 17 | Open api daily request limit reached | 日配额超限 | 购买额度或等待次日重置 |
 | 18 | Open api qps request limit reached | QPS 超限 | 降低请求频率 |
@@ -35,7 +35,7 @@
 | 282003 | missing parameters | 缺少必要参数 | 检查必填参数 |
 | 282005 | quota exceed error | 额度不足 | 申请增加配额 |
 | 282006 | check user auth error | 用户权限校验失败 | 验证用户权限 |
-| 282007 | task not exist, please check task id | 任务不存在 | 检查 task_id 是否正确 |
+| 282007 | task not exist, please check task id | 任务不存在 | 检查 task_id 是否正确（查询超时不代表任务失败，勿重复提交） |
 | 282018 | Service busy | 服务繁忙 | 降低请求频率 |
 
 ## URL 相关错误
@@ -74,7 +74,7 @@
 
 | 本技能 code | 命中的云端 error_code | Agent 动作 |
 |-------------|----------------------|-----------|
-| AUTH_FORBIDDEN | 6 | 停，提示管理员开通 |
+| AUTH_FORBIDDEN | 6 | 停，参考[创建 API Key 指引](https://cloud.baidu.com/doc/OCR/s/mmmk8dayn)检查 API Key 权限范围，或提示管理员开通 |
 | CREDENTIALS_REQUIRED | 14, 100, 110, 111 / 本地缺 AK/SK / oauth 失败 | 停，发开通说明 |
 | QUOTA_EXCEEDED | 17, 19, 282005 | 停，提示充值 |
 | RATE_LIMIT | 4, 18, 282018 | 退避后同一任务重试，不重新提交 |
@@ -89,7 +89,8 @@
 
 ## 获取帮助
 
+- [创建 API Key 指引（含权限范围配置）](https://cloud.baidu.com/doc/OCR/s/mmmk8dayn)
 - [文字识别快速入门（创建应用 / 获取 API Key / 开通能力）](https://cloud.baidu.com/doc/OCR/s/Olpjnv9u9)
 - [权限额度诊断工具（自助诊断接口权限/额度）](https://console.bce.baidu.com/tools/#/aiInterfacePermissions)
 - [提交工单](https://ticket.bce.baidu.com/#/ticket/create~productId=96&questionId=1306&channel=2)
-- [百度云控制台](https://console.bce.baidu.com/ai/)
+- [百度云控制台（文字识别）](https://console.bce.baidu.com/ai-engine/ocr/overview/index)
