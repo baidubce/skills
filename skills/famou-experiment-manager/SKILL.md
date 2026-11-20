@@ -11,7 +11,7 @@ metadata:
 
 ## Scope
 
-This skill supports hybrid-mode experiments only. The public submission mode has been removed from this skill. If the user requests a public-mode experiment, direct the task to the newer industrial decision platform `https://www.famou.com/` and do not submit it through this skill.
+This skill supports hybrid-mode experiments only. For a public cloud task, use `famou-optimize` if it is installed; otherwise direct the user to [FaMou Public Cloud](https://www.famou.com/). Do not submit public cloud tasks through this skill.
 
 ## 1. Prerequisites
 
@@ -30,7 +30,7 @@ python3 <skill-path>/scripts/config.py read
 
 ### Resolve Mode and Route
 
-Before every submission, verify that the task is hybrid mode (`cloud_type: "hybrid"`) and read and follow `references/hybrid-submit.md`. If the user asks for public mode, tell the user: “普通模式任务需要前往新版的伐谋产业决策平台提交。” Then stop and do not submit it through this skill. After a hybrid submission, return to this skill for shared JSON handling and experiment lifecycle operations.
+Before every submission, verify that the task is hybrid mode (`cloud_type: "hybrid"`) and read and follow `references/hybrid-submit.md`. For public mode, follow the routing in **Scope**. After a hybrid submission, return to this skill for shared JSON handling and experiment lifecycle operations.
 
 ## JSON Handling
 
