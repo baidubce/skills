@@ -24,14 +24,14 @@ Each skill is self-contained in its own folder with a `SKILL.md` file containing
 
 ## Skills Content
 
-### `famou-optimize`
+### `famou-full-run`
 
 Description: Run scheduling, allocation, routing, forecasting, and other optimization tasks in [FaMou Public Cloud](https://www.famou.com/).
 
 Purpose:
 - Submit task requirements and files, answer clarification questions, and approve the proposed plan from the current conversation
 - Follow cloud progress, request deep evolution, and retrieve reports and result files
-- Requires Python 3.10+ and a FaMou public cloud API key. Set `FAMOU_API_KEY` in the host environment or save the key locally at `~/.config/famou/public-api-key`. See the [skill instructions](./skills/famou-optimize/SKILL.md).
+- Requires Python 3.10+ and a FaMou public cloud API key. Set `FAMOU_API_KEY` in the host environment or save the key locally at `~/.config/famou/public-api-key`. See the [skill instructions](./skills/famou-full-run/SKILL.md).
 
 ### `famou-artifact-generator`
 
@@ -53,7 +53,7 @@ Purpose:
 
 ### `famou-experiment-manager`
 
-Description: Manage hybrid FaMou experiments through configuration, submission, and result retrieval. For public cloud tasks, use [`famou-optimize`](./skills/famou-optimize/SKILL.md).
+Description: Manage hybrid FaMou experiments through configuration, submission, and result retrieval. For public cloud tasks, use [`famou-full-run`](./skills/famou-full-run/SKILL.md).
 
 Purpose:
 - Check `famou-ctl` availability and API configuration

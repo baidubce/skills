@@ -11,7 +11,7 @@ metadata:
 
 ## Scope
 
-This skill supports hybrid-mode experiments only. For a public cloud task, use `famou-optimize` if it is installed; otherwise direct the user to [FaMou Public Cloud](https://www.famou.com/). Do not submit public cloud tasks through this skill.
+This skill supports hybrid-mode experiments only. For a public cloud task, use `famou-full-run` if it is installed; otherwise direct the user to [FaMou Public Cloud](https://www.famou.com/). Do not submit public cloud tasks through this skill.
 
 ## 1. Prerequisites
 
